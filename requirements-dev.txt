@@ -10,4 +10,4 @@ types-PyYAML==6.0
 # Runtime YAML parser required by src.config
 PyYAML==6.0
 # Country metadata used by harmonization & excel mapping
-pycountry==22.5.0
+pycountry==24.6.1
