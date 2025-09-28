@@ -1,0 +1,18 @@
+﻿v0.1.0 - 2025-09-28
+
+Highlights:
+- Add deterministic manifest provenance (environment sidecar and manifest SHA256) and manifest_version.
+- Pydantic compatibility helper added and applied across codebase.
+- CI hardened: ruff, mypy and pip-audit fail the build; pytest junit upload included.
+- Pre-commit fixes and multiple test stability improvements.
+
+Recent commits (summary):
+- ci: add PR template and finalize artifacts sidecar naming
+- docs: add pre-commit notes and changelog fragment
+- feat(artifacts): add environment sidecar, manifest_version and manifest sha256 provenance
+- ci: tighten GitHub Actions  fail on mypy/pip-audit, upload test report; clean pre-commit
+- tests: fix Path/str typing in manifest golden test; pre-commit fixes
+
+Instructions:
+- Tag created as v0.1.0 and pushed to origin.
+- Example Excel produced in ./output by example_run.py.

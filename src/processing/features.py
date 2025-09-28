@@ -1,5 +1,116 @@
-import pandas as pd
+from typing import Iterable, Optional
 import numpy as np
+import pandas as pd
+
+
+def winsorize(
+    arr: Iterable[float], lower_pct: float = 0.01, upper_pct: float = 0.99
+) -> np.ndarray:
+    """Winsorize values in array at given percentiles.
+
+    Args:
+        arr: iterable of numbers (may contain nan)
+        lower_pct: lower percentile (0..1)
+        upper_pct: upper percentile (0..1)
+
+    Returns:
+        np.ndarray with winsorized values
+    """
+    a = np.asarray(arr, dtype="float64")
+    if a.size == 0:
+        return a
+    valid = ~np.isnan(a)
+    if not valid.any():
+        return a
+    lo = np.nanpercentile(a, lower_pct * 100)
+    hi = np.nanpercentile(a, upper_pct * 100)
+    res = a.copy()
+    res[valid & (res < lo)] = lo
+    res[valid & (res > hi)] = hi
+    return res
+
+
+def robust_zscore(arr: Iterable[float], window: Optional[int] = None) -> np.ndarray:
+    """Compute robust z-score using median and MAD.
+
+    If window is provided, compute rolling median/MAD; otherwise compute global.
+    MAD is scaled by 1.4826 to be comparable to std for normal data.
+    """
+    s = pd.Series(arr, dtype="float64")
+    if window is None or window >= len(s.dropna()):
+        med = s.median()
+        mad = (s - med).abs().median()
+        if mad == 0 or pd.isna(mad):
+            # fallback to std zscore
+            return ((s - s.mean()) / s.std()).to_numpy()
+        scale = mad * 1.4826
+        return ((s - med) / scale).to_numpy()
+    else:
+        # rolling median and MAD
+        rm = s.rolling(window=window, min_periods=1).median()
+
+        # rolling mad: median absolute deviation of window
+        def _mad(x):
+            x = pd.Series(x)
+            return (x - x.median()).abs().median()
+
+        rmad = s.rolling(window=window, min_periods=1).apply(_mad, raw=False)
+        scale = rmad * 1.4826
+        out = (s - rm) / scale
+        # where scale is zero or nan, fallback to standard zscore in that window
+        fallback = (scale == 0) | scale.isna()
+        if fallback.any():
+            # compute rolling mean/std
+            rmean = s.rolling(window=window, min_periods=1).mean()
+            rstd = s.rolling(window=window, min_periods=1).std()
+            out.loc[fallback] = (s.loc[fallback] - rmean.loc[fallback]) / rstd.loc[
+                fallback
+            ]
+        return out.to_numpy()
+
+
+def rank_norm(arr: Iterable[float]) -> np.ndarray:
+    """Rank-based normalization to approximate normal scores (van der Waerden).
+
+    Returns values approximately N(0,1).
+    """
+    s = pd.Series(arr, dtype="float64")
+    n = s.rank(method="average", na_option="keep")
+    # Convert rank to quantile in (0,1)
+    denom = n.max()
+    if denom == 0 or pd.isna(denom):
+        return s.to_numpy()
+    q = (n - 0.5) / denom
+    # inverse normal
+    import scipy.stats as st
+
+    res = q.apply(lambda v: st.norm.ppf(v) if not pd.isna(v) else np.nan)
+    return res.to_numpy()
+
+
+def standardize_series(
+    arr: Iterable[float],
+    method: str = "zscore",
+    winsor_p: float = 0.01,
+    window: Optional[int] = None,
+) -> np.ndarray:
+    """Unified API to standardize a numeric series.
+
+    Supported methods: 'zscore' (mean/std), 'robust_zscore' (median/MAD), 'rank' (rank-normalization)
+    """
+    a = np.asarray(arr, dtype="float64")
+    if method == "zscore":
+        s = pd.Series(a)
+        return ((s - s.mean()) / s.std()).to_numpy()
+    if method == "winsorized_zscore":
+        w = winsorize(a, lower_pct=winsor_p, upper_pct=1 - winsor_p)
+        s = pd.Series(w)
+        return ((s - s.mean()) / s.std()).to_numpy()
+    if method == "robust_zscore":
+        return robust_zscore(a, window=window)
+    if method == "rank":
+        return rank_norm(a)
+    raise ValueError(f"Unknown standardization method: {method}")
 
 
 def apply_transform(
