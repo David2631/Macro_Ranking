@@ -1,6 +1,6 @@
 import argparse
 import logging
-from .config import load_config
+from .config import load_config, model_as_dict
 
 # WorldBankFetcher imported later when needed to avoid top-level network deps
 from .processing.harmonize import harmonize_countries, parse_dates
@@ -96,13 +96,9 @@ def main(cli_args=None):
 
             # Plugin support for WB and IMF; otherwise fall back to a TempPlugin
             if src == "WB":
-                plugin = WBIndicator(
-                    cfg.dict() if hasattr(cfg, "dict") else dict(cfg), ind_id, code
-                )
+                plugin = WBIndicator(model_as_dict(cfg), ind_id, code)
             elif src == "IMF":
-                plugin = IMFIndicator(
-                    cfg.dict() if hasattr(cfg, "dict") else dict(cfg), ind_id, code
-                )
+                plugin = IMFIndicator(model_as_dict(cfg), ind_id, code)
             else:
                 logging.warning(
                     f"No plugin for source {src} (indicator {ind_id}), falling back to fetcher map"
@@ -113,9 +109,7 @@ def main(cli_args=None):
                         f"No fetcher for source {src} (indicator {ind_id}), skipping"
                     )
                     continue
-                fetcher = FetcherCls(
-                    cfg.runtime.dict() if hasattr(cfg.runtime, "dict") else cfg.runtime
-                )
+                fetcher = FetcherCls(model_as_dict(cfg.runtime))
 
                 # Wrap fetcher in a minimal plugin-like object
                 class _TempPlugin:
@@ -187,7 +181,15 @@ def main(cli_args=None):
                         # - df
                         # - None
                         if res is None:
-                            df_src = pd.DataFrame(columns=["source","indicator","country","date","value"])
+                            df_src = pd.DataFrame(
+                                columns=[
+                                    "source",
+                                    "indicator",
+                                    "country",
+                                    "date",
+                                    "value",
+                                ]
+                            )
                             logs = []
                         elif isinstance(res, tuple) and len(res) >= 2:
                             df_src, logs = res[0], res[1] or []
@@ -198,10 +200,18 @@ def main(cli_args=None):
                             try:
                                 df_src = pd.DataFrame(df_src)
                             except Exception:
-                                df_src = pd.DataFrame(columns=["source","indicator","country","date","value"])
+                                df_src = pd.DataFrame(
+                                    columns=[
+                                        "source",
+                                        "indicator",
+                                        "country",
+                                        "date",
+                                        "value",
+                                    ]
+                                )
                         # Enrich any fetch logs immediately so cached logs are canonical
                         enriched_logs = []
-                        for f in (logs or []):
+                        for f in logs or []:
                             try:
                                 enriched_logs.append(_enrich_fetch_entry(f))
                             except Exception:
@@ -292,7 +302,7 @@ def main(cli_args=None):
             # compute per-series as_of mapping from fetch_entries
             "series_as_of": {},
             "n_rows": len(data),
-            "config_snapshot": cfg.dict() if hasattr(cfg, "dict") else dict(cfg),
+            "config_snapshot": model_as_dict(cfg),
         }
         try:
             series_map = {}
@@ -327,10 +337,16 @@ def main(cli_args=None):
     try:
         from .processing.harmonize import harmonize_df
 
-        target_freq = cfg.period.get('frequency', 'Q') if isinstance(cfg.period, dict) else getattr(cfg.period, 'frequency', 'Q')
-        data, harmonize_report = harmonize_df(data, target_freq=target_freq, aggregation='mean')
+        target_freq = (
+            cfg.period.get("frequency", "Q")
+            if isinstance(cfg.period, dict)
+            else getattr(cfg.period, "frequency", "Q")
+        )
+        data, harmonize_report = harmonize_df(
+            data, target_freq=target_freq, aggregation="mean"
+        )
         # attach report (could be written to manifest later)
-        manifest['harmonize_report'] = harmonize_report.to_dict(orient='records')
+        manifest["harmonize_report"] = harmonize_report.to_dict(orient="records")
     except Exception:
         harmonize_report = None
     # Compute per-series as_of mapping from fetch entries (for point-in-time/backtest enforcement)
@@ -340,7 +356,9 @@ def main(cli_args=None):
         # A series will be enforced for no-backfill if either the global backtest
         # configuration has no_backfill=True or the individual fetch entry has
         # no_backfill=True. This allows per-source metadata to opt into point-in-time behavior.
-        enforce_global = getattr(cfg, "backtest", None) and getattr(cfg.backtest, "no_backfill", False)
+        enforce_global = getattr(cfg, "backtest", None) and getattr(
+            cfg.backtest, "no_backfill", False
+        )
         for f in fetch_entries:
             try:
                 # only consider entries that opt into no_backfill or if global enforcement is on
@@ -370,32 +388,40 @@ def main(cli_args=None):
         try:
             # extract standardization config if present
             try:
-                global_std = cfg.scoring.standardization.dict()
+                global_std = model_as_dict(cfg.scoring.standardization)
             except Exception:
-                global_std = cfg.scoring.standardization if getattr(cfg.scoring, 'standardization', None) else None
+                global_std = (
+                    cfg.scoring.standardization
+                    if getattr(cfg.scoring, "standardization", None)
+                    else None
+                )
             try:
-                ind_std = ind.standardization.dict()
+                ind_std = model_as_dict(ind.standardization)
             except Exception:
-                ind_std = getattr(ind, 'standardization', None)
+                ind_std = getattr(ind, "standardization", None)
             # merge dicts: per-indicator overrides global
             if isinstance(global_std, dict) and isinstance(ind_std, dict):
                 merged_std = dict(global_std)
                 merged_std.update(ind_std)
             else:
                 merged_std = ind_std or global_std
-            method = getattr(cfg.scoring, 'standardization_method', 'robust_zscore')
-            invert_flag = True if getattr(ind, 'good_direction', None) == 'down' else False
-            ind_df = apply_standardization(ind_df, config=merged_std, method=method, invert=invert_flag)
+            method = getattr(cfg.scoring, "standardization_method", "robust_zscore")
+            invert_flag = (
+                True if getattr(ind, "good_direction", None) == "down" else False
+            )
+            ind_df = apply_standardization(
+                ind_df, config=merged_std, method=method, invert=invert_flag
+            )
             # ensure compatibility with downstream code expecting 'value_std'
-            if 'std_value' in ind_df.columns:
-                ind_df = ind_df.rename(columns={'std_value': 'value_std'})
+            if "std_value" in ind_df.columns:
+                ind_df = ind_df.rename(columns={"std_value": "value_std"})
         except Exception:
             # fallback to legacy standardize function
             ind_df = standardize(ind_df, cfg.scoring.standardization)
             # apply inversion if indicator semantics require lower==better
-            if getattr(ind, 'good_direction', None) == 'down':
+            if getattr(ind, "good_direction", None) == "down":
                 try:
-                    ind_df['value_std'] = -ind_df['value_std']
+                    ind_df["value_std"] = -ind_df["value_std"]
                 except Exception:
                     pass
         # If backtest.no_backfill is set, enforce point-in-time by dropping rows whose date > fetch as_of
@@ -442,17 +468,24 @@ def main(cli_args=None):
     apply_cov_pen = getattr(cfg.scoring, "apply_coverage_penalty", False)
     cov_k = float(getattr(cfg.scoring, "coverage_k", 1.0))
     scores = compute_composite(
-        pivot_eligible, cfg.scoring.weights, apply_coverage_penalty=apply_cov_pen, coverage_k=cov_k
+        pivot_eligible,
+        cfg.scoring.weights,
+        apply_coverage_penalty=apply_cov_pen,
+        coverage_k=cov_k,
     )
 
     # Optional: bootstrap uncertainty & rank stability
     try:
-        if getattr(cfg.scoring, "bootstrap", None) and getattr(cfg.scoring.bootstrap, "enabled", False):
+        if getattr(cfg.scoring, "bootstrap", None) and getattr(
+            cfg.scoring.bootstrap, "enabled", False
+        ):
             from src.processing.scoring import bootstrap_scores, rank_stability
 
             n_boot = int(getattr(cfg.scoring.bootstrap, "n", 1000))
             seed = int(getattr(cfg.scoring.bootstrap, "seed", 0))
-            summary, samples = bootstrap_scores(pivot_eligible, cfg.scoring.weights, n_boot=n_boot, seed=seed)
+            summary, samples = bootstrap_scores(
+                pivot_eligible, cfg.scoring.weights, n_boot=n_boot, seed=seed
+            )
             # summary contains score_mean, score_ci_low, score_ci_high
             # override scores with mean
             scores = summary["score_mean"].reindex(scores.index)
@@ -462,17 +495,23 @@ def main(cli_args=None):
     ranked = rank_scores(scores)
     # attach CI and stability columns if available
     try:
-        if 'score_ci_low' in locals() or (getattr(cfg.scoring, "bootstrap", None) and getattr(cfg.scoring.bootstrap, "enabled", False)):
+        if "score_ci_low" in locals() or (
+            getattr(cfg.scoring, "bootstrap", None)
+            and getattr(cfg.scoring.bootstrap, "enabled", False)
+        ):
             # attach CI and stability if summary/samples exist
-            if 'summary' in locals():
-                ranked['score_ci_low'] = summary['score_ci_low'].reindex(ranked.index)
-                ranked['score_ci_high'] = summary['score_ci_high'].reindex(ranked.index)
-            if 'samples' in locals():
+            if "summary" in locals():
+                ranked["score_ci_low"] = summary["score_ci_low"].reindex(ranked.index)
+                ranked["score_ci_high"] = summary["score_ci_high"].reindex(ranked.index)
+            if "samples" in locals():
                 baseline_scores = compute_composite(
-                    pivot_eligible, cfg.scoring.weights, apply_coverage_penalty=apply_cov_pen, coverage_k=cov_k
+                    pivot_eligible,
+                    cfg.scoring.weights,
+                    apply_coverage_penalty=apply_cov_pen,
+                    coverage_k=cov_k,
                 )
                 stab = rank_stability(samples, baseline_scores)
-                ranked['rank_stability'] = stab.reindex(ranked.index)
+                ranked["rank_stability"] = stab.reindex(ranked.index)
     except Exception:
         pass
     ranked["coverage_ratio"] = coverage.loc[ranked.index]
@@ -484,7 +523,9 @@ def main(cli_args=None):
     backtest_df = None
     try:
         if getattr(cfg, "backtest", None) and getattr(cfg.backtest, "enabled", False):
-            logging.info("Backtest enabled — constructing time-series signals and running backtest")
+            logging.info(
+                "Backtest enabled — constructing time-series signals and running backtest"
+            )
             # Build time-series signals (index: dates, columns: countries) from raw_df
             try:
                 # we expect raw_df to contain historical standardized values per date and country
@@ -506,9 +547,21 @@ def main(cli_args=None):
 
                 w_by_date = compute_rebalanced_weights(
                     signals_ts,
-                    top_n=(cfg.backtest.top_n if getattr(cfg.backtest, "top_n", None) is not None else cfg.allocation.top_n),
-                    min_alloc=(cfg.backtest.min_alloc if getattr(cfg.backtest, "min_alloc", None) is not None else cfg.allocation.min_alloc),
-                    max_alloc=(cfg.backtest.max_alloc if getattr(cfg.backtest, "max_alloc", None) is not None else cfg.allocation.max_alloc),
+                    top_n=(
+                        cfg.backtest.top_n
+                        if getattr(cfg.backtest, "top_n", None) is not None
+                        else cfg.allocation.top_n
+                    ),
+                    min_alloc=(
+                        cfg.backtest.min_alloc
+                        if getattr(cfg.backtest, "min_alloc", None) is not None
+                        else cfg.allocation.min_alloc
+                    ),
+                    max_alloc=(
+                        cfg.backtest.max_alloc
+                        if getattr(cfg.backtest, "max_alloc", None) is not None
+                        else cfg.allocation.max_alloc
+                    ),
                 )
                 # Attempt to build price series from raw_df if available: expect column 'price' else fall back to synthetic returns
                 prices = None
@@ -516,7 +569,9 @@ def main(cli_args=None):
                     try:
                         prices = (
                             raw_df[["date", "country", "price"]]
-                            .assign(date=lambda df: pd.to_datetime(df["date"]).dt.floor("D"))
+                            .assign(
+                                date=lambda df: pd.to_datetime(df["date"]).dt.floor("D")
+                            )
                             .pivot(index="date", columns="country", values="price")
                             .sort_index()
                         )
@@ -529,12 +584,18 @@ def main(cli_args=None):
                     pct = signals_ts_sorted.fillna(0).diff().fillna(0) * 0.001
                     prices = (1 + pct).cumprod() * 100
 
-                backtest_res = run_backtest(prices, w_by_date, rebalance_on=sorted(w_by_date.keys()))
+                backtest_res = run_backtest(
+                    prices, w_by_date, rebalance_on=sorted(w_by_date.keys())
+                )
                 # produce portfolio table (last weights) and export
                 # take last available weights as current allocation
                 if w_by_date:
                     last_dt = sorted(w_by_date.keys())[-1]
-                    last_w = w_by_date[last_dt].reindex(sorted(w_by_date[last_dt].index)).fillna(0.0)
+                    last_w = (
+                        w_by_date[last_dt]
+                        .reindex(sorted(w_by_date[last_dt].index))
+                        .fillna(0.0)
+                    )
                     portfolio_df = last_w.reset_index()
                     portfolio_df.columns = ["country", "weight"]
                 backtest_df = backtest_res.reset_index()
@@ -545,7 +606,7 @@ def main(cli_args=None):
 
     # export
     # package config snapshot with optional portfolio/backtest frames for Excel writer
-    cfg_for_excel = cfg.dict()
+    cfg_for_excel = model_as_dict(cfg)
     if portfolio_df is not None:
         cfg_for_excel.setdefault("portfolio", {})
         cfg_for_excel["portfolio"]["allocations"] = portfolio_df
@@ -573,23 +634,31 @@ def main(cli_args=None):
         prev_alloc = None
         try:
             if os.path.exists("./output/allocations.csv"):
-                prev_alloc = pd.read_csv("./output/allocations.csv").set_index("country")["weight"]
+                prev_alloc = pd.read_csv("./output/allocations.csv").set_index(
+                    "country"
+                )["weight"]
         except Exception:
             prev_alloc = None
 
         # choose allocation method
         try:
-            pconf = cfg.portfolio if getattr(cfg, 'portfolio', None) is not None else None
+            pconf = (
+                cfg.portfolio if getattr(cfg, "portfolio", None) is not None else None
+            )
             method = None
             if pconf is not None:
                 try:
-                    method = getattr(pconf, 'method', None) if not isinstance(pconf, dict) else pconf.get('method')
+                    method = (
+                        getattr(pconf, "method", None)
+                        if not isinstance(pconf, dict)
+                        else pconf.get("method")
+                    )
                 except Exception:
                     method = None
         except Exception:
             method = None
 
-        if method == 'threshold_power':
+        if method == "threshold_power":
             from src.portfolio.rebalance import compute_target_weights
 
             thr = 0.0
@@ -599,17 +668,80 @@ def main(cli_args=None):
             max_alloc = None
             try:
                 if pconf is not None:
-                    thr = float(getattr(pconf, 'threshold', pconf.get('threshold')) if not isinstance(pconf, dict) else pconf.get('threshold', 0.0))
-                    pw = float(getattr(pconf, 'power', pconf.get('power')) if not isinstance(pconf, dict) else pconf.get('power', 1.0))
-                    top_n = int(getattr(pconf, 'top_n', pconf.get('top_n'))) if (getattr(pconf, 'top_n', None) or (isinstance(pconf, dict) and pconf.get('top_n') is not None)) else None
-                    min_alloc = float(getattr(pconf, 'min_alloc', pconf.get('min_alloc'))) if (getattr(pconf, 'min_alloc', None) or (isinstance(pconf, dict) and pconf.get('min_alloc') is not None)) else 0.0
-                    max_alloc = float(getattr(pconf, 'max_alloc', pconf.get('max_alloc'))) if (getattr(pconf, 'max_alloc', None) or (isinstance(pconf, dict) and pconf.get('max_alloc') is not None)) else 1.0
+                    thr = float(
+                        getattr(pconf, "threshold", pconf.get("threshold"))
+                        if not isinstance(pconf, dict)
+                        else pconf.get("threshold", 0.0)
+                    )
+                    pw = float(
+                        getattr(pconf, "power", pconf.get("power"))
+                        if not isinstance(pconf, dict)
+                        else pconf.get("power", 1.0)
+                    )
+                    top_n = (
+                        int(getattr(pconf, "top_n", pconf.get("top_n")))
+                        if (
+                            getattr(pconf, "top_n", None)
+                            or (
+                                isinstance(pconf, dict)
+                                and pconf.get("top_n") is not None
+                            )
+                        )
+                        else None
+                    )
+                    min_alloc = (
+                        float(getattr(pconf, "min_alloc", pconf.get("min_alloc")))
+                        if (
+                            getattr(pconf, "min_alloc", None)
+                            or (
+                                isinstance(pconf, dict)
+                                and pconf.get("min_alloc") is not None
+                            )
+                        )
+                        else 0.0
+                    )
+                    max_alloc = (
+                        float(getattr(pconf, "max_alloc", pconf.get("max_alloc")))
+                        if (
+                            getattr(pconf, "max_alloc", None)
+                            or (
+                                isinstance(pconf, dict)
+                                and pconf.get("max_alloc") is not None
+                            )
+                        )
+                        else 1.0
+                    )
             except Exception:
                 pass
             try:
-                weights = compute_target_weights(ranked['score'], mapping=None, threshold=thr, power=pw, min_alloc=min_alloc, max_alloc=max_alloc, top_n=top_n)
+                weights = compute_target_weights(
+                    ranked["score"],
+                    mapping=None,
+                    threshold=thr,
+                    power=pw,
+                    min_alloc=min_alloc,
+                    max_alloc=max_alloc,
+                    top_n=top_n,
+                )
             except Exception:
-                weights = score_to_weights(ranked['score'], min_alloc=(cfg.allocation.min_alloc if getattr(cfg, 'allocation', None) else 0.0), max_alloc=(cfg.allocation.max_alloc if getattr(cfg, 'allocation', None) else 1.0), top_n=(cfg.allocation.top_n if getattr(cfg, 'allocation', None) else None))
+                weights = score_to_weights(
+                    ranked["score"],
+                    min_alloc=(
+                        cfg.allocation.min_alloc
+                        if getattr(cfg, "allocation", None)
+                        else 0.0
+                    ),
+                    max_alloc=(
+                        cfg.allocation.max_alloc
+                        if getattr(cfg, "allocation", None)
+                        else 1.0
+                    ),
+                    top_n=(
+                        cfg.allocation.top_n
+                        if getattr(cfg, "allocation", None)
+                        else None
+                    ),
+                )
         else:
             alloc_cfg = cfg.allocation
             weights = score_to_weights(
@@ -625,7 +757,9 @@ def main(cli_args=None):
         if portfolio_df is None:
             try:
                 portfolio_df = (
-                    pd.Series(weights).reset_index().rename(columns={"index": "country", 0: "weight"})
+                    pd.Series(weights)
+                    .reset_index()
+                    .rename(columns={"index": "country", 0: "weight"})
                 )
             except Exception:
                 portfolio_df = None
@@ -635,9 +769,15 @@ def main(cli_args=None):
             if prev_alloc is not None and portfolio_df is not None:
                 # merge prev weights
                 pdf = portfolio_df.copy()
-                pdf = pdf.merge(prev_alloc.reset_index().rename(columns={'country':'country','weight':'prev_weight'}), on='country', how='left')
-                cfg_for_excel.setdefault('portfolio', {})
-                cfg_for_excel['portfolio']['allocations'] = pdf
+                pdf = pdf.merge(
+                    prev_alloc.reset_index().rename(
+                        columns={"country": "country", "weight": "prev_weight"}
+                    ),
+                    on="country",
+                    how="left",
+                )
+                cfg_for_excel.setdefault("portfolio", {})
+                cfg_for_excel["portfolio"]["allocations"] = pdf
         except Exception:
             pass
     except Exception as e:

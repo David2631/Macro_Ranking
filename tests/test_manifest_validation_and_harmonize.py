@@ -21,7 +21,12 @@ def test_manifest_validation_includes_fetch_issues(tmp_path, monkeypatch):
         "country": "USA",
         # intentionally omit status_code and rows
     }
-    manifest = {"fetch_summary": {"X": 1}, "fetches": [fetch_entry], "n_rows": 1, "config_snapshot": {}}
+    manifest = {
+        "fetch_summary": {"X": 1},
+        "fetches": [fetch_entry],
+        "n_rows": 1,
+        "config_snapshot": {},
+    }
     monkeypatch.delenv("MANIFEST_SIGNING_KEY", raising=False)
     mpath = write_manifest(manifest, outputs={})
     m = json.loads(open(mpath, encoding="utf-8").read())

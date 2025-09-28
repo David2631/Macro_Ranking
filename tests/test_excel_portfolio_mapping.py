@@ -16,11 +16,31 @@ def test_excel_portfolio_mapping(tmp_path, monkeypatch):
         fh.write("USA,SPY,US78462F1030,NYSE,USD\n")
         fh.write("DEU,EWG,US4642871849,NYSE,USD\n")
 
-    ranked = pd.DataFrame({"score": [1.0, 0.5]}, index=["USA", "DEU"]) 
-    indicators_df = pd.DataFrame({"country": ["USA","DEU"], "indicator": ["i1","i2"], "date": ["2020-01-01","2020-01-01"], "value": [1,2]})
+    ranked = pd.DataFrame({"score": [1.0, 0.5]}, index=["USA", "DEU"])
+    indicators_df = pd.DataFrame(
+        {
+            "country": ["USA", "DEU"],
+            "indicator": ["i1", "i2"],
+            "date": ["2020-01-01", "2020-01-01"],
+            "value": [1, 2],
+        }
+    )
     raw_df = indicators_df.copy()
-    cfg = {"excel": {"path": str(tmp_path / "test.xlsx")}, "portfolio": {"allocations": pd.DataFrame({"country": ["USA","DEU"], "weight": [0.6, 0.4], "prev_weight": [0.5, 0.5]})}}
-    out = export_to_excel(str(tmp_path / "test.xlsx"), ranked, indicators_df, raw_df, cfg)
+    cfg = {
+        "excel": {"path": str(tmp_path / "test.xlsx")},
+        "portfolio": {
+            "allocations": pd.DataFrame(
+                {
+                    "country": ["USA", "DEU"],
+                    "weight": [0.6, 0.4],
+                    "prev_weight": [0.5, 0.5],
+                }
+            )
+        },
+    }
+    out = export_to_excel(
+        str(tmp_path / "test.xlsx"), ranked, indicators_df, raw_df, cfg
+    )
     # open and check Portfolio sheet exists and contains ticker/isin
     wb = load_workbook(out)
     assert "Portfolio" in wb.sheetnames

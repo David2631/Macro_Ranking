@@ -66,7 +66,9 @@ from src.fetchers.ecb import ECBFetcher  # noqa: E402
 def test_sdmx_fetchers_multi_country():
     # Each fetcher should return a DataFrame and a fetch log list
     f_imf = IMFFetcher({})
-    df_imf, logs_imf = f_imf.fetch(["DEU"], [{"id": "x", "code": "c"}], "2020-01-01", "2024-01-01", "A")
+    df_imf, logs_imf = f_imf.fetch(
+        ["DEU"], [{"id": "x", "code": "c"}], "2020-01-01", "2024-01-01", "A"
+    )
     assert isinstance(df_imf, pd.DataFrame)
     assert isinstance(logs_imf, list)
     # logs should have normalized sha and timestamp
@@ -76,7 +78,9 @@ def test_sdmx_fetchers_multi_country():
             assert "fetch_timestamp" in ent
 
     f_oecd = OECDFetcher({})
-    df_oecd, logs_oecd = f_oecd.fetch(["DEU"], [{"id": "y", "code": "c2"}], "2020-01-01", "2024-01-01", "A")
+    df_oecd, logs_oecd = f_oecd.fetch(
+        ["DEU"], [{"id": "y", "code": "c2"}], "2020-01-01", "2024-01-01", "A"
+    )
     assert isinstance(df_oecd, pd.DataFrame)
     assert isinstance(logs_oecd, list)
     if logs_oecd:
@@ -85,7 +89,9 @@ def test_sdmx_fetchers_multi_country():
             assert "fetch_timestamp" in ent
 
     f_ecb = ECBFetcher({})
-    df_ecb, logs_ecb = f_ecb.fetch(["DEU"], [{"id": "z", "code": "c3"}], "2020-01-01", "2024-01-01", "A")
+    df_ecb, logs_ecb = f_ecb.fetch(
+        ["DEU"], [{"id": "z", "code": "c3"}], "2020-01-01", "2024-01-01", "A"
+    )
     assert isinstance(df_ecb, pd.DataFrame)
     assert isinstance(logs_ecb, list)
     if logs_ecb:

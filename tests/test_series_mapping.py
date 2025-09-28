@@ -12,7 +12,7 @@ def test_load_and_lookup(tmp_path, monkeypatch):
 
     mapping = load_series_mapping(str(dst))
     assert mapping
-    ind = lookup_indicator(mapping, 'IMF', 'IFS', 'ABC.GDP.1')
-    assert ind == 'GDP'
-    ind2 = lookup_indicator(mapping, 'OECD', 'MEI', 'XYZ.IND1')
-    assert ind2 == 'IND1'
+    ind = lookup_indicator(mapping, "IMF", "IFS", "ABC.GDP.1")
+    assert ind == "GDP"
+    ind2 = lookup_indicator(mapping, "OECD", "MEI", "XYZ.IND1")
+    assert ind2 == "IND1"

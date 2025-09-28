@@ -5,6 +5,7 @@ import json
 import pytest
 from types import SimpleNamespace
 
+
 # reuse fixture loader
 def _load_fixture(name):
     p = f"tests/fixtures/{name}.json"
@@ -69,7 +70,9 @@ def test_sdmx_pipeline_end_to_end(tmp_path, inject_fake_pandasdmx, monkeypatch):
 
     # find the latest manifest in data/_artifacts
     artdir = os.path.join(os.getcwd(), "data", "_artifacts")
-    manifests = [os.path.join(artdir, p) for p in os.listdir(artdir) if p.endswith('.json')]
+    manifests = [
+        os.path.join(artdir, p) for p in os.listdir(artdir) if p.endswith(".json")
+    ]
     assert manifests, "No manifest files written"
     # pick the most recently modified manifest
     mpath = max(manifests, key=os.path.getmtime)

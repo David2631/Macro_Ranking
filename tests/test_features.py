@@ -25,7 +25,7 @@ def test_robust_zscore_rolling_window():
     vals = [1, 2, 2, 3, 100]
     df = pd.DataFrame(
         {
-                "date": pd.date_range(start="2020-01-01", periods=len(vals), freq="ME"),
+            "date": pd.date_range(start="2020-01-01", periods=len(vals), freq="ME"),
             "value": vals,
         }
     )

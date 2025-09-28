@@ -52,9 +52,11 @@ def apply_standardization(
 
         # optionally use rolling MAD as scale for robust zscore
         rolling_mad = None
-        if getattr(cfg, 'rolling_mad', False):
+        if getattr(cfg, "rolling_mad", False):
             try:
-                rm = standardize.rolling_mad(s, window=cfg.rolling_window, min_periods=cfg.rolling_min_periods)
+                rm = standardize.rolling_mad(
+                    s, window=cfg.rolling_window, min_periods=cfg.rolling_min_periods
+                )
                 # align to dev index and fillna (use bfill/ffill to avoid deprecated fillna(method=...))
                 rolling_mad = rm.bfill().ffill().values
             except Exception:
@@ -62,13 +64,17 @@ def apply_standardization(
 
         # winsorize if requested
         if method in ("winsorized_zscore", "robust_zscore", "zscore"):
-            w = standardize.winsorize(dev, lower_pct=cfg.winsor_lower, upper_pct=cfg.winsor_upper)
+            w = standardize.winsorize(
+                dev, lower_pct=cfg.winsor_lower, upper_pct=cfg.winsor_upper
+            )
         else:
             w = dev
 
         # standardize methods
         if method == "robust_zscore":
-            z = standardize.robust_zscore(w, scale=rolling_mad if rolling_mad is not None else None)
+            z = standardize.robust_zscore(
+                w, scale=rolling_mad if rolling_mad is not None else None
+            )
         elif method == "zscore":
             # classic zscore: mean/std
             a = np.asarray(w, dtype=float)

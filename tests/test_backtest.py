@@ -35,7 +35,9 @@ def test_backtest_basic_run():
     for i, d in enumerate(dates):
         signals.loc[d] = [1.0 + 0.01 * i, 0.5, 0.2]
 
-    weights_by_date = compute_rebalanced_weights(signals, top_n=2, min_alloc=0.0, max_alloc=0.8)
+    weights_by_date = compute_rebalanced_weights(
+        signals, top_n=2, min_alloc=0.0, max_alloc=0.8
+    )
     # ensure we have weights for each date
     assert len(weights_by_date) == len(dates)
 

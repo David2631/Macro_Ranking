@@ -30,7 +30,11 @@ def compute_composite(
         if col not in df.columns:
             df[col] = pd.NA
     # Coerce to numeric (turn pd.NA -> NaN) and compute weighted avg.
-    df_num = df.apply(lambda s: pd.to_numeric(s, errors="coerce")).astype(float).multiply(w, axis=1)
+    df_num = (
+        df.apply(lambda s: pd.to_numeric(s, errors="coerce"))
+        .astype(float)
+        .multiply(w, axis=1)
+    )
     numerator = df_num.sum(axis=1, skipna=True)
     # denominator: for each cell, include weight if value is notna
     denom = (df_num.notna().multiply(w, axis=1)).sum(axis=1)
@@ -108,7 +112,9 @@ def coverage_penalty(coverage: pd.Series, k: float = 1.0) -> pd.Series:
     return mult
 
 
-def bootstrap_scores(pivot_df: pd.DataFrame, weights: Dict[str, float], n_boot: int = 1000, seed: int = 0) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def bootstrap_scores(
+    pivot_df: pd.DataFrame, weights: Dict[str, float], n_boot: int = 1000, seed: int = 0
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Bootstrap the composite scores by resampling indicators with replacement.
 
     Returns a tuple: (summary_df, samples_df)
@@ -127,13 +133,17 @@ def bootstrap_scores(pivot_df: pd.DataFrame, weights: Dict[str, float], n_boot: 
         df_samp = pivot_df.loc[:, sampled].copy()
         # align weights for sampled indicators (allow duplicates)
         w_vals = np.array([weights.get(ind, 0.0) for ind in sampled], dtype=float)
-        vals = df_samp.apply(lambda s: pd.to_numeric(s, errors="coerce")).astype(float).to_numpy()
+        vals = (
+            df_samp.apply(lambda s: pd.to_numeric(s, errors="coerce"))
+            .astype(float)
+            .to_numpy()
+        )
         # numerator: sum over columns of value * weight
         numer = (np.nan_to_num(vals, nan=0.0) * w_vals).sum(axis=1)
         # denom: sum of weights where value is not NA
         mask = ~np.isnan(vals)
         denom = (mask * w_vals).sum(axis=1)
-        with np.errstate(divide='ignore', invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             score_arr = np.where(denom != 0, numer / denom, np.nan)
         score = pd.Series(score_arr, index=df_samp.index)
         samples.append(score)
@@ -141,7 +151,9 @@ def bootstrap_scores(pivot_df: pd.DataFrame, weights: Dict[str, float], n_boot: 
     mean = samples_df.mean(axis=1)
     ci_low = samples_df.quantile(0.025, axis=1)
     ci_high = samples_df.quantile(0.975, axis=1)
-    summary = pd.DataFrame({"score_mean": mean, "score_ci_low": ci_low, "score_ci_high": ci_high})
+    summary = pd.DataFrame(
+        {"score_mean": mean, "score_ci_low": ci_low, "score_ci_high": ci_high}
+    )
     return summary, samples_df
 
 

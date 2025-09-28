@@ -1,7 +1,9 @@
 import pandas as pd
 
 
-def compute_turnover_costs(weights_old: pd.Series, weights_new: pd.Series, cost_per_unit: float = 0.001) -> float:
+def compute_turnover_costs(
+    weights_old: pd.Series, weights_new: pd.Series, cost_per_unit: float = 0.001
+) -> float:
     """Compute estimated turnover cost fraction between two weight vectors.
 
     weights_old/new: pd.Series indexed by country codes. cost_per_unit is fraction per unit turnover.

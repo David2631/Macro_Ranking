@@ -12,7 +12,11 @@ def load_country_mapping(path: str) -> Dict[str, Dict[str, str]]:
         with open(path, newline="", encoding="utf-8") as fh:
             reader = csv.DictReader(fh)
             for row in reader:
-                code = (row.get("iso3") or row.get("ISO3") or row.get("code") or "").strip().upper()
+                code = (
+                    (row.get("iso3") or row.get("ISO3") or row.get("code") or "")
+                    .strip()
+                    .upper()
+                )
                 if not code:
                     continue
                 out[code] = {k: v for k, v in row.items() if v is not None}
@@ -23,7 +27,9 @@ def load_country_mapping(path: str) -> Dict[str, Dict[str, str]]:
     return out
 
 
-def get_mapping_for_country(mapping: Dict[str, Dict[str, str]], iso3: str) -> Optional[Dict[str, str]]:
+def get_mapping_for_country(
+    mapping: Dict[str, Dict[str, str]], iso3: str
+) -> Optional[Dict[str, str]]:
     if not iso3:
         return None
     return mapping.get(str(iso3).upper())
