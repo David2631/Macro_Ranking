@@ -20,7 +20,7 @@ def _infer_freq(series: pd.Series) -> str:
     # median delta days heuristic
     if len(series.index) < 2:
         return "M"
-    deltas = np.diff(series.index.astype('int64') // 10 ** 9)  # seconds
+    deltas = np.diff(series.index.astype("int64") // 10**9)  # seconds
     median_days = np.median(deltas) / (24 * 3600)
     if median_days > 300:
         return "A"
@@ -46,7 +46,12 @@ def harmonize_indicator(
     Returns (harmonized_df, report)
     """
     if df.empty:
-        return df.copy(), {"n_in": 0, "n_out": 0, "source_freq": None, "target_freq": target_freq}
+        return df.copy(), {
+            "n_in": 0,
+            "n_out": 0,
+            "source_freq": None,
+            "target_freq": target_freq,
+        }
 
     s = df.sort_values("date").set_index("date")["value"].astype(float)
     src_freq = _infer_freq(s)
@@ -75,63 +80,76 @@ def harmonize_indicator(
         annual = s.copy()
         # ensure annual series indexed at year-end
         # normalize to year-end timestamps using 'Y' token
-        annual.index = annual.index.to_period('Y').to_timestamp('Y')
+        annual.index = annual.index.to_period("Y").to_timestamp("Y")
         # if seasonal-adjusted flag is set and an sa_value column exists, prefer it
-        if sa_flag and 'sa_value' in df.columns:
-            annual = df.set_index('date')['sa_value'].astype(float)
-            annual.index = annual.index.to_period('Y').to_timestamp('Y')
-        qseries = annual.reindex(qidx, method='ffill')
-        out = pd.DataFrame({'date': qseries.index, 'value': qseries.values})
+        if sa_flag and "sa_value" in df.columns:
+            annual = df.set_index("date")["sa_value"].astype(float)
+            annual.index = annual.index.to_period("Y").to_timestamp("Y")
+        qseries = annual.reindex(qidx, method="ffill")
+        out = pd.DataFrame({"date": qseries.index, "value": qseries.values})
         report["n_out"] = len(out)
         return out, report
 
     # Monthly to Quarterly: aggregate months into quarter using aggregation rule
     if src_freq == "M" and target_freq == "Q":
         # use quarter-end resampling token
-        r = s.resample('QE')
-        if aggregation == 'mean':
+        r = s.resample("QE")
+        if aggregation == "mean":
             q = r.mean()
-        elif aggregation == 'median':
+        elif aggregation == "median":
             q = r.median()
-        elif aggregation == 'last':
+        elif aggregation == "last":
             q = r.last()
         else:
             # fallback to mean
             q = r.mean()
-        out = pd.DataFrame({'date': q.index, 'value': q.values})
+        out = pd.DataFrame({"date": q.index, "value": q.values})
         report["n_out"] = len(out)
         return out, report
 
     # Fallback: attempt resample with asfreq or ffill
     try:
-        if target_freq == 'Q':
+        if target_freq == "Q":
             qidx = _quarter_index_range(start=s.index.min(), end=s.index.max())
-            out_series = s.reindex(qidx, method='ffill')
-            out = pd.DataFrame({'date': out_series.index, 'value': out_series.values})
-            report['n_out'] = len(out)
+            out_series = s.reindex(qidx, method="ffill")
+            out = pd.DataFrame({"date": out_series.index, "value": out_series.values})
+            report["n_out"] = len(out)
             return out, report
     except Exception:
         pass
 
     # If nothing else, return original
-    report['n_out'] = len(s)
-    return s.reset_index().rename(columns={"value": "value"}).reset_index(drop=True), report
+    report["n_out"] = len(s)
+    return (
+        s.reset_index().rename(columns={"value": "value"}).reset_index(drop=True),
+        report,
+    )
 
 
-def harmonize_df(df: pd.DataFrame, target_freq: str = 'Q', aggregation: str = 'mean', sa_flag: bool = False):
+def harmonize_df(
+    df: pd.DataFrame,
+    target_freq: str = "Q",
+    aggregation: str = "mean",
+    sa_flag: bool = False,
+):
     """Apply harmonization to a full DataFrame with columns ['indicator','country','date','value'].
 
     Returns (harmonized_df, report_df)
     """
     results = []
     reports = []
-    gb = df.groupby(['indicator', 'country'])
+    gb = df.groupby(["indicator", "country"])
     for (ind, c), group in gb:
-        hdf, rep = harmonize_indicator(group[['date', 'value']], target_freq=target_freq, aggregation=aggregation, sa_flag=sa_flag)
-        hdf['indicator'] = ind
-        hdf['country'] = c
-        results.append(hdf[['indicator', 'country', 'date', 'value']])
-        rep.update({'indicator': ind, 'country': c})
+        hdf, rep = harmonize_indicator(
+            group[["date", "value"]],
+            target_freq=target_freq,
+            aggregation=aggregation,
+            sa_flag=sa_flag,
+        )
+        hdf["indicator"] = ind
+        hdf["country"] = c
+        results.append(hdf[["indicator", "country", "date", "value"]])
+        rep.update({"indicator": ind, "country": c})
         reports.append(rep)
 
     if results:
@@ -141,6 +159,8 @@ def harmonize_df(df: pd.DataFrame, target_freq: str = 'Q', aggregation: str = 'm
 
     report_df = pd.DataFrame(reports)
     return out_df, report_df
+
+
 import pandas as pd
 import pycountry
 
@@ -179,7 +199,9 @@ def parse_dates(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def frequency_pipeline(series: pd.Series, from_freq: str, to_freq: str, rule: str = "mean") -> pd.Series:
+def frequency_pipeline(
+    series: pd.Series, from_freq: str, to_freq: str, rule: str = "mean"
+) -> pd.Series:
     """
     Resample a time series from `from_freq` (e.g., 'A','Q','M') to `to_freq`.
     Supports:
@@ -222,7 +244,9 @@ def frequency_pipeline(series: pd.Series, from_freq: str, to_freq: str, rule: st
         return s
 
 
-def diagnostic_report(indicator_name: str, original_freq: str, target_freq: str, rule: str = "mean") -> dict:
+def diagnostic_report(
+    indicator_name: str, original_freq: str, target_freq: str, rule: str = "mean"
+) -> dict:
     return {
         "indicator": indicator_name,
         "from_freq": original_freq,

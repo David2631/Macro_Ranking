@@ -5,8 +5,10 @@ from src.io import artifacts
 
 
 def _latest_manifest_path():
-    art_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', '_artifacts')
-    files = sorted(glob.glob(os.path.join(art_dir, '*.json')))
+    art_dir = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "data", "_artifacts"
+    )
+    files = sorted(glob.glob(os.path.join(art_dir, "*.json")))
     if not files:
         return None
     return files[-1]
@@ -20,13 +22,20 @@ def test_manifest_fetch_entries_strict():
     """
     path = _latest_manifest_path()
     if path:
-        with open(path, encoding='utf-8') as fh:
+        with open(path, encoding="utf-8") as fh:
             m = json.load(fh)
-        if m.get('validation', {}).get('n_issues', 0) == 0:
+        if m.get("validation", {}).get("n_issues", 0) == 0:
             # quick sanity: required keys present in first fetch entry
-            if m.get('fetches'):
-                f = m['fetches'][0]
-                for k in ('request_url', 'http_status', 'response_time_ms', 'rows', 'sha256_normalized', 'fetch_timestamp'):
+            if m.get("fetches"):
+                f = m["fetches"][0]
+                for k in (
+                    "request_url",
+                    "http_status",
+                    "response_time_ms",
+                    "rows",
+                    "sha256_normalized",
+                    "fetch_timestamp",
+                ):
                     assert k in f and f.get(k) is not None
                 return
 
@@ -34,7 +43,7 @@ def test_manifest_fetch_entries_strict():
     sample_records = [
         {"indicator": "TEST_IND", "country": "TST", "date": "2020", "value": 1}
     ]
-    raw_bytes = json.dumps(sample_records, ensure_ascii=False).encode('utf-8')
+    raw_bytes = json.dumps(sample_records, ensure_ascii=False).encode("utf-8")
     sample_fe = {
         "url": "https://example.test/api",
         "params": None,
@@ -57,8 +66,9 @@ def test_manifest_fetch_entries_strict():
     # write manifest (will populate environment + validation)
     path_out = artifacts.write_manifest(manifest, prefix="test_manifest_strict")
     assert os.path.exists(path_out)
-    with open(path_out, encoding='utf-8') as fh:
+    with open(path_out, encoding="utf-8") as fh:
         m2 = json.load(fh)
 
-    assert m2.get('validation', {}).get('n_issues', 0) == 0, f"Enriched manifest had validation issues: {m2.get('validation')}"
-
+    assert (
+        m2.get("validation", {}).get("n_issues", 0) == 0
+    ), f"Enriched manifest had validation issues: {m2.get('validation')}"

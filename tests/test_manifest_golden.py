@@ -44,6 +44,8 @@ def test_manifest_golden(tmp_path):
     fe = fetches[0]
     assert fe.get("sha256_normalized") is not None
     assert fe.get("fetch_timestamp") == "2025-09-28T00:00:00Z"
+
+
 import sys
 import hashlib
 import hmac
@@ -55,15 +57,17 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 
-
 def canonical_payload(payload: dict) -> bytes:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
 
 
 def test_manifest_golden_signature(tmp_path, monkeypatch):
     # Load fixture records
     fixture = Path(__file__).parent / "fixtures" / "manifest_golden_records.json"
-    records = json.loads(fixture.read_text(encoding="utf-8"))
+    fixture_path = str(fixture)
+    records = json.loads(open(fixture_path, encoding="utf-8").read())
 
     fetch_entry = {
         "url": "https://api.example.org/gdp",
@@ -99,10 +103,12 @@ def test_manifest_golden_signature(tmp_path, monkeypatch):
     expected_sig = hmac.new(key, canonical, hashlib.sha256).hexdigest()
 
     assert m.get("manifest_signature") == expected_sig
+
+
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+ROOT2 = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT2))
 
 
 def test_manifest_hmac_stable(tmp_path, monkeypatch):

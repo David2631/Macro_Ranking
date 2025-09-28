@@ -3,6 +3,7 @@
 Uses pandasdmx when available. Returns an empty DataFrame and a fetch_log
 when pandasdmx is not installed so tests can run in CI without network.
 """
+
 import logging
 from typing import List, Dict
 import pandas as pd
@@ -112,6 +113,7 @@ class OECDFetcher(AbstractFetcher):
             except Exception as e:
                 logger.debug(f"OECD fetch error for {ind}: {e}")
                 from datetime import datetime, timezone
+
                 fetch_logs.append(
                     {
                         "request_url": f"sdmx://OECD/{ind.get('code')}",
@@ -124,7 +126,7 @@ class OECDFetcher(AbstractFetcher):
                         "fetch_timestamp": datetime.now(timezone.utc).isoformat(),
                         "indicator": ind.get("id"),
                         "country": None,
-                        "api_meta": {"resource": ind.get('code')},
+                        "api_meta": {"resource": ind.get("code")},
                         "no_backfill": False,
                         "error": str(e),
                     }

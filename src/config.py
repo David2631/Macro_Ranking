@@ -7,7 +7,9 @@ class StandardizeConfig(BaseModel):
     winsor_upper: float = Field(0.99, ge=0.5, le=1.0)
     rolling_window: int = Field(12, ge=1)
     rolling_min_periods: int = Field(3, ge=1)
-    rolling_mad: bool = Field(False, description="If true, use rolling MAD as scale for robust_zscore")
+    rolling_mad: bool = Field(
+        False, description="If true, use rolling MAD as scale for robust_zscore"
+    )
 
 
 DEFAULT_STD_CONFIG = StandardizeConfig(
@@ -17,10 +19,32 @@ DEFAULT_STD_CONFIG = StandardizeConfig(
     rolling_min_periods=3,
     rolling_mad=False,
 )
-import yaml
+import yaml  # type: ignore[import]
 from datetime import date
 from typing import Any, Dict, List
 from pydantic import BaseModel, Field, ValidationError, validator, root_validator
+
+
+# Compatibility helper: safely convert Pydantic models to plain dicts.
+# Only runs model_dump()/dict() when the object is a BaseModel instance;
+# otherwise returns the object unchanged. This avoids accidental dict()
+# conversions of primitives (strings) and keeps behavior stable across
+# pydantic v1 and v2.
+def model_as_dict(obj):
+    if isinstance(obj, BaseModel):
+        # pydantic v2
+        if hasattr(obj, "model_dump") and callable(getattr(obj, "model_dump")):
+            try:
+                return obj.model_dump()
+            except Exception:
+                pass
+        # pydantic v1
+        if hasattr(obj, "dict") and callable(getattr(obj, "dict")):
+            try:
+                return obj.dict()
+            except Exception:
+                pass
+    return obj
 
 
 class SourceEntry(BaseModel):

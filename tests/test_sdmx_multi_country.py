@@ -62,7 +62,9 @@ from src.fetchers.ecb import ECBFetcher  # noqa: E402
 
 def test_imf_multi():
     f = IMFFetcher({})
-    df, logs = f.fetch(["DEU", "FRA"], [{"id": "i", "code": "c"}], "2019-01-01", "2024-01-01", "A")
+    df, logs = f.fetch(
+        ["DEU", "FRA"], [{"id": "i", "code": "c"}], "2019-01-01", "2024-01-01", "A"
+    )
     assert isinstance(df, pd.DataFrame)
     # should have rows for DEU and FRA
     assert set(df["country"]) >= {"DEU", "FRA"}
@@ -71,7 +73,9 @@ def test_imf_multi():
 
 def test_oecd_multi():
     f = OECDFetcher({})
-    df, logs = f.fetch(["DEU", "ITA"], [{"id": "o", "code": "c"}], "2019-01-01", "2022-01-01", "A")
+    df, logs = f.fetch(
+        ["DEU", "ITA"], [{"id": "o", "code": "c"}], "2019-01-01", "2022-01-01", "A"
+    )
     assert isinstance(df, pd.DataFrame)
     assert set(df["country"]) >= {"DEU", "ITA"}
     assert isinstance(logs, list)
@@ -79,7 +83,9 @@ def test_oecd_multi():
 
 def test_ecb_multi():
     f = ECBFetcher({})
-    df, logs = f.fetch(["DEU", "ESP"], [{"id": "e", "code": "c"}], "2018-01-01", "2021-01-01", "A")
+    df, logs = f.fetch(
+        ["DEU", "ESP"], [{"id": "e", "code": "c"}], "2018-01-01", "2021-01-01", "A"
+    )
     assert isinstance(df, pd.DataFrame)
     assert set(df["country"]) >= {"DEU", "ESP"}
     assert isinstance(logs, list)

@@ -16,6 +16,7 @@ def test_winsorize_clip():
     w = standardize.winsorize(arr, lower_pct=0.0, upper_pct=0.75)
     # values should be clipped to the quantile bounds
     import numpy as np
+
     a = np.asarray(arr, dtype=float)
     high = np.nanquantile(a, 0.75)
     low = np.nanquantile(a, 0.0)

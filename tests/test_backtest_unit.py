@@ -6,10 +6,13 @@ def test_backtest_simple_positive_returns():
 
     dates = pd.date_range(start="2020-01-01", periods=5, freq="B")
     # two assets with steadily positive returns
-    prices = pd.DataFrame({
-        "A": [100, 101, 102, 103, 104],
-        "B": [50, 51, 52, 53, 54],
-    }, index=dates)
+    prices = pd.DataFrame(
+        {
+            "A": [100, 101, 102, 103, 104],
+            "B": [50, 51, 52, 53, 54],
+        },
+        index=dates,
+    )
 
     # signals: prefer asset A first day, then equal
     signals = pd.DataFrame(

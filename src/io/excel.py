@@ -197,7 +197,7 @@ def export_to_excel(
     ws4 = wb.create_sheet("Konfiguration")
     cfg_text: str = ""
     try:
-        import yaml
+        import yaml  # type: ignore[import]
 
         # yaml.safe_dump returns a str; keep cfg_text annotated to satisfy mypy
         cfg_text = yaml.safe_dump(config)
@@ -218,6 +218,7 @@ def export_to_excel(
         column=1,
         value="Methodik: Datenquellen, Transformationen, Standardisierung, Gewichte sind in Konfiguration beschrieben.",
     )
+
     # Optional: write portfolio allocations and backtest results if provided in config
     def _maybe_write_df_to_sheet(name: str, obj: Any) -> bool:
         if obj is None:
@@ -257,7 +258,9 @@ def export_to_excel(
                 displayName=f"{name}Table",
                 ref=f"A1:{wsx.cell(row=wsx.max_row, column=wsx.max_column).coordinate}",
             )
-            tabx.tableStyleInfo = TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)
+            tabx.tableStyleInfo = TableStyleInfo(
+                name="TableStyleMedium9", showRowStripes=True
+            )
             wsx.add_table(tabx)
         except Exception:
             # ignore table creation errors for small/empty frames
@@ -271,13 +274,21 @@ def export_to_excel(
     # pandas objects in boolean context (DataFrame.__bool__ raises).
     pconf = config.get("portfolio")
     if isinstance(pconf, dict):
-        portfolio_obj = pconf.get("allocations") if pconf.get("allocations") is not None else pconf.get("df")
+        portfolio_obj = (
+            pconf.get("allocations")
+            if pconf.get("allocations") is not None
+            else pconf.get("df")
+        )
     else:
         portfolio_obj = pconf
 
     bconf = config.get("backtest")
     if isinstance(bconf, dict):
-        backtest_obj = bconf.get("results") if bconf.get("results") is not None else bconf.get("df")
+        backtest_obj = (
+            bconf.get("results")
+            if bconf.get("results") is not None
+            else bconf.get("df")
+        )
     else:
         backtest_obj = bconf
 
@@ -288,20 +299,28 @@ def export_to_excel(
             try:
                 mapping_path = None
                 try:
-                    pconf = config.get("portfolio") if isinstance(config, dict) else None
+                    pconf = (
+                        config.get("portfolio") if isinstance(config, dict) else None
+                    )
                     if isinstance(pconf, dict) and pconf.get("mapping_path"):
                         mapping_path = pconf.get("mapping_path")
                 except Exception:
                     mapping_path = None
                 if not mapping_path:
-                    mapping_path = os.path.join(os.getcwd(), "data", "countries_iso3_map.csv")
+                    mapping_path = os.path.join(
+                        os.getcwd(), "data", "countries_iso3_map.csv"
+                    )
                 if os.path.exists(mapping_path):
                     import csv as _csv
 
                     with open(mapping_path, newline="", encoding="utf-8") as _fh:
                         rdr = _csv.DictReader(_fh)
                         for r in rdr:
-                            code = (r.get("iso3") or r.get("ISO3") or r.get("code") or "").strip().upper()
+                            code = (
+                                (r.get("iso3") or r.get("ISO3") or r.get("code") or "")
+                                .strip()
+                                .upper()
+                            )
                             if code:
                                 mapping[code] = r
             except Exception:
@@ -309,27 +328,47 @@ def export_to_excel(
 
             try:
                 df_port: pd.DataFrame = (
-                    portfolio_obj.copy() if isinstance(portfolio_obj, pd.DataFrame) else pd.DataFrame(portfolio_obj)
+                    portfolio_obj.copy()
+                    if isinstance(portfolio_obj, pd.DataFrame)
+                    else pd.DataFrame(portfolio_obj)
                 )
                 # ensure country column exists
                 if "country" in df_port.columns:
                     df_port["_iso3"] = df_port["country"].astype(str).str.upper()
                     # add mapping columns
                     for col in ("ticker", "isin", "exchange", "currency"):
-                        df_port[col] = df_port["_iso3"].apply(lambda x: mapping.get(x, {}).get(col) if mapping else None)
+                        df_port[col] = df_port["_iso3"].apply(
+                            lambda x: mapping.get(x, {}).get(col) if mapping else None
+                        )
                     # compute delta and est_cost if prev_weight present
                     try:
-                        if "prev_weight" in df_port.columns and "weight" in df_port.columns:
-                            df_port["delta"] = df_port["weight"] - df_port["prev_weight"]
+                        if (
+                            "prev_weight" in df_port.columns
+                            and "weight" in df_port.columns
+                        ):
+                            df_port["delta"] = (
+                                df_port["weight"] - df_port["prev_weight"]
+                            )
                             # get cost_per_unit from config.portfolio.cost_per_unit if present else default 0.001
                             cost_per_unit = 0.001
                             try:
-                                pconf = config.get("portfolio") if isinstance(config, dict) else None
-                                if isinstance(pconf, dict) and pconf.get("cost_per_unit") is not None:
+                                pconf = (
+                                    config.get("portfolio")
+                                    if isinstance(config, dict)
+                                    else None
+                                )
+                                if (
+                                    isinstance(pconf, dict)
+                                    and pconf.get("cost_per_unit") is not None
+                                ):
                                     # mypy: pconf.get() may return Any | None; guard with explicit cast
                                     val = pconf.get("cost_per_unit")
                                     try:
-                                        cost_per_unit = float(val) if val is not None else cost_per_unit
+                                        cost_per_unit = (
+                                            float(val)
+                                            if val is not None
+                                            else cost_per_unit
+                                        )
                                     except Exception:
                                         cost_per_unit = cost_per_unit
                             except Exception:

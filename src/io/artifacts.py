@@ -73,6 +73,28 @@ def pip_freeze() -> str:
         return ""
 
 
+def pip_list() -> Dict[str, str]:
+    """Return pip list as a mapping name->version when available."""
+    try:
+        out = subprocess.check_output(
+            ["pip", "list", "--format", "json"], stderr=subprocess.DEVNULL, text=True
+        )
+        import json as _json
+
+        items = _json.loads(out)
+        res: Dict[str, str] = {}
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            name = it.get("name")
+            version = it.get("version")
+            if isinstance(name, str) and isinstance(version, str):
+                res[name] = version
+        return res
+    except Exception:
+        return {}
+
+
 def git_commit_hash() -> Optional[str]:
     try:
         out = subprocess.check_output(
@@ -83,21 +105,66 @@ def git_commit_hash() -> Optional[str]:
         return None
 
 
+def git_branch() -> Optional[str]:
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        return out.strip()
+    except Exception:
+        return None
+
+
+def git_remote_url() -> Optional[str]:
+    try:
+        out = subprocess.check_output(
+            ["git", "config", "--get", "remote.origin.url"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        return out.strip()
+    except Exception:
+        return None
+
+
+def git_is_dirty() -> bool:
+    try:
+        out = subprocess.check_output(
+            ["git", "status", "--porcelain"], stderr=subprocess.DEVNULL, text=True
+        )
+        return bool(out.strip())
+    except Exception:
+        return False
+
+
 def environment_manifest() -> Dict[str, Any]:
     import platform
+
     env = {
         "python_version": platform.python_version(),
         "platform": platform.platform(),
         "pip_freeze": pip_freeze(),
+        "pip_list": pip_list(),
         "git_commit": git_commit_hash(),
+        "git_branch": git_branch(),
+        "git_remote": git_remote_url(),
+        "git_dirty": git_is_dirty(),
         "run_id": os.environ.get("RUN_ID") or None,
         "python_executable": sys.executable if hasattr(sys, "executable") else None,
         "cwd": os.getcwd(),
     }
     # compute a short deterministic environment hash combining python_version, git_commit and pip_freeze
     try:
+        # include pip_list (sorted items) to strengthen determinism of the env hash
         env_payload = json.dumps(
-            {"python_version": env["python_version"], "git_commit": env["git_commit"], "pip_freeze": env["pip_freeze"]},
+            {
+                "python_version": env["python_version"],
+                "git_commit": env["git_commit"],
+                "pip_freeze": env["pip_freeze"],
+                "pip_list": env.get("pip_list") or {},
+            },
             sort_keys=True,
             separators=(",", ":"),
             ensure_ascii=False,
@@ -126,7 +193,9 @@ def _enrich_fetch_entry(fe: Dict[str, Any]) -> Dict[str, Any]:
         else:
             out.setdefault("request_url", None)
     out.setdefault("params", out.get("params") or None)
-    out.setdefault("http_status", out.get("http_status") or out.get("status_code") or None)
+    out.setdefault(
+        "http_status", out.get("http_status") or out.get("status_code") or None
+    )
     # default response time to 0 when not provided (indicates no timing was captured)
     if out.get("response_time_ms") is None:
         out["response_time_ms"] = 0
@@ -219,10 +288,14 @@ def write_manifest(
     """
     ensure_artifact_dir()
     m = dict(manifest)  # shallow copy
+    # manifest version for future compatibility
+    m.setdefault("manifest_version", "1.0")
     # stable timestamp for human readability (not used in deterministic signature)
     # use timezone-aware UTC datetime
     m.setdefault("run_timestamp_utc", datetime.now(timezone.utc).isoformat())
-    m["environment"] = environment_manifest()
+    # include environment snapshot (will also be written as a sidecar)
+    env = environment_manifest()
+    m["environment"] = env
 
     # Enrich fetch entries to canonical schema where possible
     try:
@@ -280,4 +353,28 @@ def write_manifest(
     path = os.path.join(ARTIFACT_DIR, f"{prefix}_{ts}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(m, f, ensure_ascii=False, indent=2, default=str)
+
+    # write environment sidecar for easier provenance inspection
+    try:
+        # write a sidecar file with a non-.json extension so simple
+        # glob('*.json') will continue to find the manifest file as the
+        # latest entry. The file itself contains JSON for easy inspection.
+        if path.endswith(".json"):
+            env_path = path.replace(".json", ".environment")
+        else:
+            env_path = path + ".environment"
+        with open(env_path, "w", encoding="utf-8") as ef:
+            json.dump(env, ef, ensure_ascii=False, indent=2, default=str)
+        # compute manifest file sha256 and attach to manifest outputs for stronger provenance
+        manifest_sha = sha256_of_file(path)
+        if manifest_sha:
+            m.setdefault("provenance", {})
+            m["provenance"]["manifest_sha256"] = manifest_sha
+            # update file with provenance now included
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(m, f, ensure_ascii=False, indent=2, default=str)
+    except Exception:
+        # do not fail the manifest write for sidecar or hashing errors
+        pass
+
     return path

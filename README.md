@@ -12,6 +12,26 @@ python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements.
 
 2. Run the pipeline with the example config:
 
+Developer notes — pre-commit
+----------------------------
+
+We use pre-commit to enforce formatting and basic checks locally. To run the hooks locally:
+
+```powershell
+python -m pip install --user pre-commit
+python -m pre_commit install
+python -m pre_commit run --all-files
+```
+
+If you modify dependencies, update `requirements-dev.txt` and run `pip install -r requirements-dev.txt`.
+
+CHANGELOG
+---------
+
+Unreleased
+- Added deterministic manifests with environment sidecar and manifest SHA provenance.
+- Tightened CI: mypy and pip-audit are now blocking; pytest reports are uploaded as artifacts.
+
 ```powershell
 python -m src.main --config ./example-configs/example-config-s1.yaml
 ```
