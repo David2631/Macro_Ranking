@@ -44,12 +44,14 @@ def run_batches(countries, batch_size=20, run=False, cleanup=True, out_dir=None)
     combined_xlsx = os.path.join(out_dir, f"macro_ranking_{len(countries)}.xlsx")
     combined_csv = os.path.join(out_dir, f"macro_ranking_{len(countries)}.csv")
 
-    existing_files = set([f for f in os.listdir(out_dir) if f.endswith('.xlsx')])
+    existing_files = set([f for f in os.listdir(out_dir) if f.endswith(".xlsx")])
     collected = []
 
     for i, batch in enumerate(chunk(countries, batch_size), start=1):
-        cs = ','.join(batch)
-        print(f"Batch {i}/{(len(countries)+batch_size-1)//batch_size}: {len(batch)} countries")
+        cs = ",".join(batch)
+        print(
+            f"Batch {i}/{(len(countries)+batch_size-1)//batch_size}: {len(batch)} countries"
+        )
         if not run:
             print("  Dry-run: would call main with countries:", cs)
             continue
@@ -61,7 +63,7 @@ def run_batches(countries, batch_size=20, run=False, cleanup=True, out_dir=None)
             continue
 
         # detect any new xlsx files produced by the run
-        files = [f for f in os.listdir(out_dir) if f.endswith('.xlsx')]
+        files = [f for f in os.listdir(out_dir) if f.endswith(".xlsx")]
         new_files = [os.path.join(out_dir, f) for f in files if f not in existing_files]
         if not new_files:
             print("  Warning: no new .xlsx produced for this batch")
@@ -95,43 +97,58 @@ def run_batches(countries, batch_size=20, run=False, cleanup=True, out_dir=None)
 
     combined = pd.concat(collected, ignore_index=True)
     # keep highest score per country if available
-    if 'score' in combined.columns and 'country' in combined.columns:
-        combined = combined.sort_values('score', ascending=False).drop_duplicates(subset=['country'], keep='first')
+    if "score" in combined.columns and "country" in combined.columns:
+        combined = combined.sort_values("score", ascending=False).drop_duplicates(
+            subset=["country"], keep="first"
+        )
     combined = combined.reset_index(drop=True)
 
     try:
         combined.to_excel(combined_xlsx, index=False)
         combined.to_csv(combined_csv, index=False)
-        print('Wrote combined Excel to', combined_xlsx)
-        print('Wrote combined CSV to', combined_csv)
+        print("Wrote combined Excel to", combined_xlsx)
+        print("Wrote combined CSV to", combined_csv)
     except Exception as e:
-        print('Failed to write combined outputs:', e)
+        print("Failed to write combined outputs:", e)
 
     manifest = {
-        'timestamp': datetime.utcnow().isoformat(),
-        'fetch_summary': {'batches': len(collected)},
-        'fetches': [],
-        'n_rows': int(combined.shape[0]),
-        'config_snapshot': {'countries': countries}
+        "timestamp": datetime.utcnow().isoformat(),
+        "fetch_summary": {"batches": len(collected)},
+        "fetches": [],
+        "n_rows": int(combined.shape[0]),
+        "config_snapshot": {"countries": countries},
     }
     try:
-        write_manifest(manifest, outputs={'excel': combined_xlsx, 'csv': combined_csv})
-        print('Wrote manifest to data/_artifacts (see latest)')
+        write_manifest(manifest, outputs={"excel": combined_xlsx, "csv": combined_csv})
+        print("Wrote manifest to data/_artifacts (see latest)")
     except Exception as e:
-        print('Failed to write manifest:', e)
+        print("Failed to write manifest:", e)
 
 
 def parse_args_and_run():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--run', action='store_true', help='Execute batches (default is dry-run)')
-    parser.add_argument('--batch-size', type=int, default=20, help='Number of countries per batch')
-    parser.add_argument('--no-cleanup', action='store_true', help='Do not delete per-batch output files')
-    parser.add_argument('--n', type=int, default=170, help='Number of countries to include (first N from pycountry)')
+    parser.add_argument(
+        "--run", action="store_true", help="Execute batches (default is dry-run)"
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=20, help="Number of countries per batch"
+    )
+    parser.add_argument(
+        "--no-cleanup", action="store_true", help="Do not delete per-batch output files"
+    )
+    parser.add_argument(
+        "--n",
+        type=int,
+        default=170,
+        help="Number of countries to include (first N from pycountry)",
+    )
     args = parser.parse_args()
 
     countries = list_countries(n=args.n)
-    run_batches(countries, batch_size=args.batch_size, run=args.run, cleanup=not args.no_cleanup)
+    run_batches(
+        countries, batch_size=args.batch_size, run=args.run, cleanup=not args.no_cleanup
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parse_args_and_run()

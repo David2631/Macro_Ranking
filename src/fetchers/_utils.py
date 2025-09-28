@@ -1,4 +1,5 @@
 """Small utilities for fetchers: timing, retry/backoff, and cache key generation."""
+
 import time
 import hashlib
 import json
@@ -9,7 +10,9 @@ def time_ms():
     return int(time.time() * 1000)
 
 
-def simple_backoff_retry(fn: Callable[..., Any], attempts: int = 3, base_delay: float = 0.5) -> Any:
+def simple_backoff_retry(
+    fn: Callable[..., Any], attempts: int = 3, base_delay: float = 0.5
+) -> Any:
     """Call fn with simple exponential backoff. Returns fn() result or raises the last exception.
 
     This is intentionally simple: it retries on any Exception. The previous
@@ -23,7 +26,7 @@ def simple_backoff_retry(fn: Callable[..., Any], attempts: int = 3, base_delay: 
             return fn()
         except Exception as e:
             last_exc = e
-            delay = base_delay * (2 ** i)
+            delay = base_delay * (2**i)
             time.sleep(delay)
     # Re-raise the last caught exception
     if last_exc is None:
@@ -32,5 +35,15 @@ def simple_backoff_retry(fn: Callable[..., Any], attempts: int = 3, base_delay: 
 
 
 def cache_key_for_sdmx(source: str, resource: str, key: str, start: str, end: str):
-    payload = json.dumps({"source": source, "resource": resource, "key": key, "start": start, "end": end}, sort_keys=True, separators=(",", ":"))
+    payload = json.dumps(
+        {
+            "source": source,
+            "resource": resource,
+            "key": key,
+            "start": start,
+            "end": end,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()

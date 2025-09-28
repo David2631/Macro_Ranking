@@ -17,12 +17,19 @@ def compute_target_weights(
     mapping is not strictly required for weight computation but passed through for future extensions.
     """
     w = threshold_power_weights(
-        scores, threshold=threshold, power=power, min_alloc=min_alloc, max_alloc=max_alloc, top_n=top_n
+        scores,
+        threshold=threshold,
+        power=power,
+        min_alloc=min_alloc,
+        max_alloc=max_alloc,
+        top_n=top_n,
     )
     return w
 
 
-def apply_turnover_costs(weights_old: pd.Series, weights_new: pd.Series, cost_per_unit: float = 0.001) -> float:
+def apply_turnover_costs(
+    weights_old: pd.Series, weights_new: pd.Series, cost_per_unit: float = 0.001
+) -> float:
     """Compute turnover cost given previous and new weights; returns total cost fraction.
 
     cost_per_unit is cost per absolute weight change (e.g., 0.001 = 10 bps per 100% turnover)

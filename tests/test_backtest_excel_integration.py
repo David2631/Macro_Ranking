@@ -7,14 +7,30 @@ def test_export_excel_includes_backtest_and_portfolio():
     from src.io.excel import export_to_excel
 
     # create small ranking, indicators, raw and backtest/portfolio frames
-    ranking = pd.DataFrame({"country": ["USA", "DEU"], "score": [0.9, 0.1]}).set_index("country")
-    indicators = pd.DataFrame({"country": ["USA", "DEU"], "indicator": ["gdp", "gdp"], "value": [1.0, 0.5]})
-    raw = pd.DataFrame({"country": ["USA", "DEU"], "date": [pd.Timestamp("2020-01-01"), pd.Timestamp("2020-01-01")], "value": [1.0, 0.5]})
+    ranking = pd.DataFrame({"country": ["USA", "DEU"], "score": [0.9, 0.1]}).set_index(
+        "country"
+    )
+    indicators = pd.DataFrame(
+        {"country": ["USA", "DEU"], "indicator": ["gdp", "gdp"], "value": [1.0, 0.5]}
+    )
+    raw = pd.DataFrame(
+        {
+            "country": ["USA", "DEU"],
+            "date": [pd.Timestamp("2020-01-01"), pd.Timestamp("2020-01-01")],
+            "value": [1.0, 0.5],
+        }
+    )
 
-    backtest_df = pd.DataFrame({"date": pd.date_range("2020-01-01", periods=3), "nav": [1.0, 1.01, 1.02]})
+    backtest_df = pd.DataFrame(
+        {"date": pd.date_range("2020-01-01", periods=3), "nav": [1.0, 1.01, 1.02]}
+    )
     portfolio_df = pd.DataFrame({"country": ["USA", "DEU"], "weight": [0.6, 0.4]})
 
-    cfg = {"excel": {"number_format": "#.##0,00"}, "backtest": {"results": backtest_df}, "portfolio": {"allocations": portfolio_df}}
+    cfg = {
+        "excel": {"number_format": "#.##0,00"},
+        "backtest": {"results": backtest_df},
+        "portfolio": {"allocations": portfolio_df},
+    }
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
     tmp.close()

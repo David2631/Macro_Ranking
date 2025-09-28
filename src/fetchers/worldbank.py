@@ -67,7 +67,12 @@ class WorldBankFetcher(AbstractFetcher):
         fetch_logs: list[dict] = []
         # defensive: if indicators is None or empty, return empty structures
         if not indicators:
-            return pd.DataFrame(columns=["source", "indicator", "country", "date", "value"]), fetch_logs
+            return (
+                pd.DataFrame(
+                    columns=["source", "indicator", "country", "date", "value"]
+                ),
+                fetch_logs,
+            )
         for ind in indicators:
             code = ind["code"]
             for country in countries:
@@ -91,6 +96,7 @@ class WorldBankFetcher(AbstractFetcher):
                         # log and append a canonical error entry then break
                         logger.warning(f"WB fetch error for {country}/{code}: {e}")
                         from datetime import datetime, timezone
+
                         fetch_logs.append(
                             {
                                 "request_url": url,
@@ -100,7 +106,9 @@ class WorldBankFetcher(AbstractFetcher):
                                 "rows": 0,
                                 "sha256_raw": None,
                                 "sha256_normalized": None,
-                                "fetch_timestamp": datetime.now(timezone.utc).isoformat(),
+                                "fetch_timestamp": datetime.now(
+                                    timezone.utc
+                                ).isoformat(),
                                 "indicator": ind.get("id"),
                                 "country": country,
                                 "api_meta": None,

@@ -32,10 +32,16 @@ def test_pipeline_invert_and_rolling_mad():
     df_std_norm = apply_standardization(df, method="robust_zscore", invert=False)
     df_std_inv = apply_standardization(df, method="robust_zscore", invert=True)
     # pick first row for country A and same position for inverted run
-    a_norm = df_std_norm[(df_std_norm['country']=='A') & (df_std_norm['indicator']=='IND1')].iloc[0]['std_value']
-    a_inv = df_std_inv[(df_std_inv['country']=='A') & (df_std_inv['indicator']=='IND1')].iloc[0]['std_value']
+    a_norm = df_std_norm[
+        (df_std_norm["country"] == "A") & (df_std_norm["indicator"] == "IND1")
+    ].iloc[0]["std_value"]
+    a_inv = df_std_inv[
+        (df_std_inv["country"] == "A") & (df_std_inv["indicator"] == "IND1")
+    ].iloc[0]["std_value"]
     assert a_norm == -a_inv
 
     # test rolling_mad on (should run without error)
-    df_std_rm = apply_standardization(df, config={'rolling_mad': True}, method='robust_zscore')
-    assert 'std_value' in df_std_rm.columns
+    df_std_rm = apply_standardization(
+        df, config={"rolling_mad": True}, method="robust_zscore"
+    )
+    assert "std_value" in df_std_rm.columns

@@ -3,7 +3,9 @@ import numpy as np
 import pandas as pd
 
 
-def robust_zscore(arr: Iterable[float], center: Optional[float] = None, scale: Optional[float] = None):
+def robust_zscore(
+    arr: Iterable[float], center: Optional[float] = None, scale: Optional[float] = None
+):
     a = np.asarray(list(arr), dtype=float)
     if center is None:
         center = np.nanmedian(a)
@@ -25,7 +27,12 @@ def robust_zscore(arr: Iterable[float], center: Optional[float] = None, scale: O
 def rolling_mad(series: pd.Series, window: int = 12, min_periods: int = 3):
     """Return rolling MAD scaled to be comparable to std (1.4826 factor)."""
     med = series.rolling(window=window, min_periods=min_periods).median()
-    mad = series.subtract(med).abs().rolling(window=window, min_periods=min_periods).median()
+    mad = (
+        series.subtract(med)
+        .abs()
+        .rolling(window=window, min_periods=min_periods)
+        .median()
+    )
     return mad * 1.4826
 
 
@@ -40,7 +47,7 @@ def rank_norm(arr: Iterable[float]):
     a = np.asarray(list(arr), dtype=float)
     # rank, convert to uniform [0,1], then to standard normal via inverse CDF
     s = pd.Series(a)
-    ranks = s.rank(method='average', na_option='keep')
+    ranks = s.rank(method="average", na_option="keep")
     uniform = (ranks - 0.5) / ranks.count()
     # avoid exact 0/1
     eps = np.finfo(float).eps

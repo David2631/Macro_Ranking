@@ -6,6 +6,7 @@ Behavior:
 
 This script is intentionally conservative: it doesn't change library code and only monkeypatches behavior at runtime.
 """
+
 import os
 import sys
 import json
@@ -73,8 +74,16 @@ def main(config_path: str = None):
                     all_df = []
                     logs = []
                     for ind in indicators:
-                        ind_id = ind.get("id") if isinstance(ind, dict) else getattr(ind, "id", None)
-                        code = ind.get("code") if isinstance(ind, dict) else getattr(ind, "code", None)
+                        ind_id = (
+                            ind.get("id")
+                            if isinstance(ind, dict)
+                            else getattr(ind, "id", None)
+                        )
+                        code = (
+                            ind.get("code")
+                            if isinstance(ind, dict)
+                            else getattr(ind, "code", None)
+                        )
                         for c in countries:
                             got = load_fixture(code or ind_id, c)
                             if got is None:
@@ -91,7 +100,18 @@ def main(config_path: str = None):
                             all_df.append(df)
                             logs.extend(lg)
                     if not all_df:
-                        return pd.DataFrame(columns=["source", "indicator", "country", "date", "value"]), logs
+                        return (
+                            pd.DataFrame(
+                                columns=[
+                                    "source",
+                                    "indicator",
+                                    "country",
+                                    "date",
+                                    "value",
+                                ]
+                            ),
+                            logs,
+                        )
                     return pd.concat(all_df, ignore_index=True), logs
 
             mod.WorldBankFetcher = FixtureWB

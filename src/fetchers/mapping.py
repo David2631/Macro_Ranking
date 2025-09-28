@@ -4,6 +4,7 @@ Supports CSV mapping (simple example in data/series_mapping.csv). Exposes
 `load_series_mapping(path)` which returns a dict keyed by (provider,resource,series_code)
 and `lookup_indicator(mapping, provider, resource, series_code)` helper.
 """
+
 import csv
 from typing import Dict, Tuple, Optional, Any
 
@@ -20,14 +21,22 @@ def load_series_mapping(path: str) -> Dict[Tuple[str, str, str], Dict[str, Any]]
                 indicator = (r.get("indicator_id") or "").strip()
                 if not provider or not series:
                     continue
-                mapping[(provider, resource, series)] = {"indicator_id": indicator, "notes": r.get("notes")}
+                mapping[(provider, resource, series)] = {
+                    "indicator_id": indicator,
+                    "notes": r.get("notes"),
+                }
     except Exception:
         # return empty mapping on error to avoid breaking pipeline consumers
         return {}
     return mapping
 
 
-def lookup_indicator(mapping: Dict[Tuple[str, str, str], Dict[str, Any]], provider: str, resource: str, series_code: str) -> Optional[str]:
+def lookup_indicator(
+    mapping: Dict[Tuple[str, str, str], Dict[str, Any]],
+    provider: str,
+    resource: str,
+    series_code: str,
+) -> Optional[str]:
     key = (provider, resource or "", series_code)
     res = mapping.get(key)
     if res:

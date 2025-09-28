@@ -57,11 +57,18 @@ class IMFFetcher(AbstractFetcher):
                         "error": "pandasdmx_missing",
                     }
                 )
-            return pd.DataFrame(columns=["source", "indicator", "country", "date", "value"]), fetch_logs
+            return (
+                pd.DataFrame(
+                    columns=["source", "indicator", "country", "date", "value"]
+                ),
+                fetch_logs,
+            )
 
         # create client lazily with retry
         try:
-            client = simple_backoff_retry(lambda: sdmx.Request("IMF"), attempts=2, base_delay=0.2)
+            client = simple_backoff_retry(
+                lambda: sdmx.Request("IMF"), attempts=2, base_delay=0.2
+            )
         except Exception as e:
             logger.debug(f"pandasdmx client creation failed: {e}")
             from datetime import datetime, timezone
@@ -84,14 +91,21 @@ class IMFFetcher(AbstractFetcher):
                         "error": "client_creation_failed",
                     }
                 )
-            return pd.DataFrame(columns=["source", "indicator", "country", "date", "value"]), fetch_logs
+            return (
+                pd.DataFrame(
+                    columns=["source", "indicator", "country", "date", "value"]
+                ),
+                fetch_logs,
+            )
 
         # Process each indicator: check cache -> fetch -> emit logs
         from src.io.artifacts import sha256_of_records
         from datetime import datetime, timezone
+
         # try to load canonical series mapping (optional)
         try:
             from src.fetchers.mapping import load_series_mapping, lookup_indicator
+
             mapping = load_series_mapping("data/series_mapping.csv")
         except Exception:
             mapping = {}
@@ -112,8 +126,14 @@ class IMFFetcher(AbstractFetcher):
             start_ms = time_ms()
             pulled = []
             try:
+
                 def _do_fetch():
-                    return client.data(resource_id="IFS", key=code, startPeriod=start[:4], endPeriod=end[:4])
+                    return client.data(
+                        resource_id="IFS",
+                        key=code,
+                        startPeriod=start[:4],
+                        endPeriod=end[:4],
+                    )
 
                 res = simple_backoff_retry(_do_fetch, attempts=3, base_delay=0.3)
 
@@ -122,7 +142,9 @@ class IMFFetcher(AbstractFetcher):
                         country = None
                         try:
                             # series.dimensions may be a dict-like mapping
-                            country = series.dimensions.get("REF_AREA") or series.dimensions.get("COUNTRY")
+                            country = series.dimensions.get(
+                                "REF_AREA"
+                            ) or series.dimensions.get("COUNTRY")
                         except Exception:
                             country = None
                         for obs in series.observations:
@@ -131,7 +153,13 @@ class IMFFetcher(AbstractFetcher):
                                 dt = obs.index
                             except Exception:
                                 continue
-                            rec = {"source": "IMF", "indicator": ind.get("id"), "country": country, "date": dt, "value": val}
+                            rec = {
+                                "source": "IMF",
+                                "indicator": ind.get("id"),
+                                "country": country,
+                                "date": dt,
+                                "value": val,
+                            }
                             rows.append(rec)
                             pulled.append(rec)
 
@@ -141,7 +169,12 @@ class IMFFetcher(AbstractFetcher):
                     import json as _json
                     import hashlib as _hashlib
 
-                    canonical = _json.dumps(pulled, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+                    canonical = _json.dumps(
+                        pulled,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        ensure_ascii=False,
+                    ).encode("utf-8")
                     sha_raw = _hashlib.sha256(canonical).hexdigest()
                 except Exception:
                     sha_raw = None
@@ -154,7 +187,11 @@ class IMFFetcher(AbstractFetcher):
                 # resolved indicator id via mapping if available
                 mapped_ind = None
                 try:
-                    mapped_ind = lookup_indicator(mapping, 'IMF', 'IFS', str(code or "")) if mapping else None
+                    mapped_ind = (
+                        lookup_indicator(mapping, "IMF", "IFS", str(code or ""))
+                        if mapping
+                        else None
+                    )
                 except Exception:
                     mapped_ind = None
 
@@ -176,7 +213,9 @@ class IMFFetcher(AbstractFetcher):
 
                 # cache the pulled records and fetch_logs
                 try:
-                    io_cache.cache_set(key, {"records": pulled, "fetch_logs": [entry]}, ttl_hours=24)
+                    io_cache.cache_set(
+                        key, {"records": pulled, "fetch_logs": [entry]}, ttl_hours=24
+                    )
                 except Exception:
                     logger.debug("cache_set failed, continuing")
 
@@ -202,5 +241,10 @@ class IMFFetcher(AbstractFetcher):
                 )
 
         if not rows:
-            return pd.DataFrame(columns=["source", "indicator", "country", "date", "value"]), fetch_logs
+            return (
+                pd.DataFrame(
+                    columns=["source", "indicator", "country", "date", "value"]
+                ),
+                fetch_logs,
+            )
         return pd.DataFrame(rows), fetch_logs

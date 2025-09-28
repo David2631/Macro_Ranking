@@ -73,6 +73,28 @@ def pip_freeze() -> str:
         return ""
 
 
+def pip_list() -> Dict[str, str]:
+    """Return pip list as a mapping name->version when available."""
+    try:
+        out = subprocess.check_output(
+            ["pip", "list", "--format", "json"], stderr=subprocess.DEVNULL, text=True
+        )
+        import json as _json
+
+        items = _json.loads(out)
+        res: Dict[str, str] = {}
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            name = it.get("name")
+            version = it.get("version")
+            if isinstance(name, str) and isinstance(version, str):
+                res[name] = version
+        return res
+    except Exception:
+        return {}
+
+
 def git_commit_hash() -> Optional[str]:
     try:
         out = subprocess.check_output(
@@ -83,21 +105,66 @@ def git_commit_hash() -> Optional[str]:
         return None
 
 
+def git_branch() -> Optional[str]:
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        return out.strip()
+    except Exception:
+        return None
+
+
+def git_remote_url() -> Optional[str]:
+    try:
+        out = subprocess.check_output(
+            ["git", "config", "--get", "remote.origin.url"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        return out.strip()
+    except Exception:
+        return None
+
+
+def git_is_dirty() -> bool:
+    try:
+        out = subprocess.check_output(
+            ["git", "status", "--porcelain"], stderr=subprocess.DEVNULL, text=True
+        )
+        return bool(out.strip())
+    except Exception:
+        return False
+
+
 def environment_manifest() -> Dict[str, Any]:
     import platform
+
     env = {
         "python_version": platform.python_version(),
         "platform": platform.platform(),
         "pip_freeze": pip_freeze(),
+        "pip_list": pip_list(),
         "git_commit": git_commit_hash(),
+        "git_branch": git_branch(),
+        "git_remote": git_remote_url(),
+        "git_dirty": git_is_dirty(),
         "run_id": os.environ.get("RUN_ID") or None,
         "python_executable": sys.executable if hasattr(sys, "executable") else None,
         "cwd": os.getcwd(),
     }
     # compute a short deterministic environment hash combining python_version, git_commit and pip_freeze
     try:
+        # include pip_list (sorted items) to strengthen determinism of the env hash
         env_payload = json.dumps(
-            {"python_version": env["python_version"], "git_commit": env["git_commit"], "pip_freeze": env["pip_freeze"]},
+            {
+                "python_version": env["python_version"],
+                "git_commit": env["git_commit"],
+                "pip_freeze": env["pip_freeze"],
+                "pip_list": env.get("pip_list") or {},
+            },
             sort_keys=True,
             separators=(",", ":"),
             ensure_ascii=False,
@@ -126,7 +193,9 @@ def _enrich_fetch_entry(fe: Dict[str, Any]) -> Dict[str, Any]:
         else:
             out.setdefault("request_url", None)
     out.setdefault("params", out.get("params") or None)
-    out.setdefault("http_status", out.get("http_status") or out.get("status_code") or None)
+    out.setdefault(
+        "http_status", out.get("http_status") or out.get("status_code") or None
+    )
     # default response time to 0 when not provided (indicates no timing was captured)
     if out.get("response_time_ms") is None:
         out["response_time_ms"] = 0

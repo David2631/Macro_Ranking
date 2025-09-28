@@ -53,7 +53,9 @@ def cache_get(key: str, ttl_hours: int = 24) -> Optional[Dict[str, Any]]:
                             keyt = (ind, c)
                             if keyt not in series_map or ts > series_map[keyt]:
                                 series_map[keyt] = ts
-                        data["series_as_of"] = {f"{k[0]}::{k[1]}": v for k, v in series_map.items()}
+                        data["series_as_of"] = {
+                            f"{k[0]}::{k[1]}": v for k, v in series_map.items()
+                        }
                     except Exception:
                         data["series_as_of"] = {}
                 return data

@@ -35,7 +35,9 @@ def threshold_power_weights(
     tilted_series = pd.Series(tilted, index=trimmed.index)
 
     # delegate the normalization and clamping to existing helper
-    weights = score_to_weights(tilted_series, min_alloc=min_alloc, max_alloc=max_alloc, top_n=top_n)
+    weights = score_to_weights(
+        tilted_series, min_alloc=min_alloc, max_alloc=max_alloc, top_n=top_n
+    )
     # drop zero (or near-zero) weights so returned series only contains active holdings
     if weights.empty:
         return weights
