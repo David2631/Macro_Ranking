@@ -1,0 +1,124 @@
+countries:
+  - USA
+  - CHN
+  - JPN
+  - DEU
+  - GBR
+  - FRA
+  - ITA
+  - ESP
+  - NLD
+  - BEL
+  - SWE
+  - NOR
+  - DNK
+  - FIN
+  - CHE
+  - AUT
+  - POL
+  - CZE
+  - HUN
+  - ROU
+  - TUR
+  - KOR
+  - IND
+  - BRA
+  - MEX
+  - ARG
+  - ZAF
+  - AUS
+  - NZL
+  - SGP
+  - CAN
+  - MYS
+  - IDN
+  - THA
+  - PHL
+  - VNM
+  - NGA
+  - EGY
+  - KEN
+  - MAR
+  - PER
+  - COL
+  - CHL
+  - VEN
+  - IRN
+  - QAT
+  - SAU
+  - ISR
+  - ARE
+  - PAK
+  - BGR
+
+period:
+  start: '2015-01-01'
+  end: '2025-09-27'
+  frequency: 'Q'
+
+indicators:
+  - id: gdp_real_yoy
+    sources:
+      - source: WB
+        code: NY.GDP.MKTP.KD.ZG
+    good_direction: up
+    transform: none
+  - id: inflation
+    sources:
+      - source: WB
+        code: FP.CPI.TOTL.ZG
+    good_direction: down
+    transform: none
+  - id: unemployment
+    sources:
+      - source: WB
+        code: SL.UEM.TOTL.ZS
+    good_direction: down
+    transform: none
+  - id: debt_gdp
+    sources:
+      - source: WB
+        code: GC.DOD.TOTL.GD.ZS
+    good_direction: down
+    transform: none
+  - id: current_account_gdp
+    sources:
+      - source: WB
+        code: BN.CAB.XOKA.GD.ZS
+    good_direction: up
+    transform: none
+
+scoring:
+  standardization: zscore
+  smoothing: 0
+  weights:
+    gdp_real_yoy: 0.35
+    inflation: 0.25
+    unemployment: 0.2
+    debt_gdp: 0.1
+    current_account_gdp: 0.1
+  min_coverage_ratio: 0.6
+
+excel:
+  path: './output/macro_ranking.xlsx'
+  sheet_prefix: 'Makro'
+  number_format: '#.##0,00'
+  date_format: 'DD.MM.YYYY'
+
+caching:
+  enabled: true
+  ttl_hours: 24
+
+runtime:
+  max_workers: 4
+  request_timeout_sec: 20
+  retry_max: 3
+  backoff_initial_sec: 1.0
+
+allocation:
+  # min_alloc: minimaler Anteil pro Land (0..1). Beispielsweise 0.01 = 1% Mindestallokation
+  min_alloc: 0.01
+  # max_alloc: maximaler Anteil pro Land (0..1). Beispielsweise 0.5 = 50% Maximalgewicht
+  max_alloc: 0.5
+  # top_n: nur die Top-N Länder (nach Score) erhalten eine Allokation; null = alle
+  top_n: 10

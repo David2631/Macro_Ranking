@@ -1,0 +1,8 @@
+{
+  "series": [
+    {
+      "dimensions": {"REF_AREA": "EMU"},
+      "observations": [["2015", 100], ["2016", 110]]
+    }
+  ]
+}

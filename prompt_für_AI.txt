@@ -1,0 +1,60 @@
+ZIEL (AKTUELL)
+Dieses Projekt ist jetzt implementiert als robuste Macro‑Ranking‑Pipeline in Python. Die wichtigsten Bausteine sind vorhanden und getestet.
+
+KURZÜBERSICHT (Stand: 2025-09-27)
+- Deterministische Provenance/Manifeste (SHA256 normalisiert + optionale HMAC-Signatur)
+- Fetcher-Plugins (World Bank + SDMX‑Fixture-Mode) mit Dateicache und ThreadPool-Fetching
+- Harmonisierung: Frequenz-Konversion, Transformationen, Standardisierung (zscore/robust)
+- Scoring: Coverage-Penalty, Bootstrap-CI, rank_stability, Szenarien S1/S2/S3
+- Backtest: einfache Rebalance-Engine, Portfolio/Backtest-Sheets in Excel
+- Excel-Export: deutsche Zahlen-/Datumsformate, mehrere Sheets (Ranking, Einzelindikatoren, Rohdaten, Portfolio, Backtest, README/Config)
+- Tests: umfangreiche Unit- & Integrationstests, fixture-driven CI job
+- CI: GitHub Actions workflow mit fixture-run job und artifact handling
+
+WIE DU ES LÄUFT (Quickstart)
+1) Virtuelle Umgebung & Abhängigkeiten:
+
+```powershell
+python -m venv .venv; .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+2) Fixture-only deterministischer Run (empfohlen für lokale Tests / CI):
+
+```powershell
+python -m scripts.ci_fixture_run example-configs/example-config-s1.yaml
+```
+
+3) Voller Netzwerk-Run mit Beispielkonfiguration:
+
+```powershell
+python -m src.main --config example-configs/example-config-s2.yaml
+```
+
+4) Tests ausführen:
+
+```powershell
+pytest -q
+```
+
+WICHTIGE DATEIPFADEN
+- Excel-Ausgabe: `output/*.xlsx` (z.B. `fixture_macro_ranking.xlsx`)
+- Allocations CSV: `output/allocations.csv`
+- Manifeste & Fetch-Logs: `data/_artifacts/manifest_*.json`
+- SDMX-Fixtures (CI/local): `tests/fixtures/sdmx/<source>/`
+
+CI & SDMX-FIXTURES
+- Der GitHub Actions Workflow (`.github/workflows/ci.yml`) führt Tests in einer Matrix (Py3.11/3.12) und hat einen separaten `fixtures`-Job, der SDMX‑Fixtures aus Artefakten lädt und die fixture-only pipeline ausführt.
+- Um neue Fixtures hinzuzufügen: lege `{indicator}_{country}.json` unter `tests/fixtures/sdmx/<source>/` ab (Liste von Objekten mit `date` und `value`).
+
+NÜTZLICHE HINWEISE
+- Manifest-Signatur: setze `MANIFEST_SIGNING_KEY` in CI, um deterministische HMAC-Signaturen zu erhalten.
+- Excel: deutsche Zahlenformate und Tabellen (AutoFilter) werden automatisch gesetzt. Wenn Excel gesperrt ist, wird ein timestamped Fallback-File geschrieben.
+- Erweiterungen: Ich kann zusätzliche SDMX-Fixtures, Beispiel-Notebooks oder ein Dockerfile hinzufügen — sag mir, welche du willst.
+
+STATUS & NEXT STEPS
+- Alle TODOs aus dem Sprint wurden implementiert und getestet. Test-Suite lokal: `45 passed`.
+- Vorschlag: Pushen & PR erstellen, dann CI laufen lassen und Artefakte prüfen. Optional: weitere Fixtures (mehr Indikatoren/Länder) einpflegen für breitere CI-Abdeckung.
+
+KONTAKT
+- Wenn du möchtest, erstelle ich den PR-Text & Changelog-Eintrag und pushe die Änderungen.

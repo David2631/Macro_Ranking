@@ -1,0 +1,8 @@
+{
+  "series": [
+    {
+      "dimensions": {"REF_AREA": "ABC"},
+      "observations": [["2000", 1.23], ["2001", 2.34]]
+    }
+  ]
+}

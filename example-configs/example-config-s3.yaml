@@ -1,0 +1,47 @@
+countries:
+  - USA
+  - CHN
+  - JPN
+period:
+  start: "2018-01-01"
+  end: "2025-09-27"
+  frequency: Q
+indicators:
+  - id: current_account_gdp
+    sources:
+      - source: WB
+        code: BN.CAB.XOKA.GD.ZS
+    good_direction: up
+    transform: none
+  - id: debt_gdp
+    sources:
+      - source: WB
+        code: GC.DOD.TOTL.GD.ZS
+    good_direction: down
+    transform: none
+scoring:
+  standardization: robust_zscore
+  smoothing: 0
+  weights:
+    current_account_gdp: 0.6
+    debt_gdp: 0.4
+  min_coverage_ratio: 0.4
+  apply_coverage_penalty: false
+backtest:
+  enabled: true
+  top_n: 3
+  min_alloc: 0.02
+  max_alloc: 0.6
+  no_backfill: false
+excel:
+  path: output/macro_ranking_s3.xlsx
+caching:
+  enabled: true
+  ttl_hours: 12
+runtime:
+  max_workers: 6
+  request_timeout_sec: 20
+allocation:
+  min_alloc: 0.02
+  max_alloc: 0.6
+  top_n: 3

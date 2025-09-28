@@ -1,0 +1,9 @@
+[tool.ruff]
+line-length = 88
+# Keep defaults but ensure stable formatting across devs
+extend-ignore = ["E402"]
+exclude = [".venv", "build", "dist", "tests/fixtures"]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']

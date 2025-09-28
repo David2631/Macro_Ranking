@@ -1,0 +1,13 @@
+/.venv
+.cache
+output
+data
+dist
+build
+*.pyc
+__pycache__
+*.egg-info
+tmp_*
+*.xlsx
+.vscode
+.DS_Store

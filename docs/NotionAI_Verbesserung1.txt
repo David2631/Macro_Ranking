@@ -1,0 +1,121 @@
+ZIEL
+Bringe das Makro‑Ranking auf Investment‑Bank (IB) Niveau und mache es direkt für ein Länder‑ETF‑Portfolio nutzbar.
+
+1) DATENQUALITÄT, PROVENANCE, POINT‑IN‑TIME
+- Pro Fetch ins Manifest: request_url, params, http_status, response_time_ms, rows, etag/last_modified, sha256_raw, sha256_normalized.
+- Point‑in‑Time: fetch_timestamp/as_of pro Serie; Option „no_backfill“ im Backtest.
+- Environment‑Manifest: python_version, os, pip_freeze, git_commit, run_id; Hash des Excel/CSV.
+- Einheiten- und Definitionsprüfung: Mapping für nominal/real, per‑capita/level; harte Fehler bei Mischungen.
+
+Konkrete Tasks
+- src/io/artifacts.py: Manifest-Schema erweitern, Hashing + Env-Snapshot.
+- Tests: Golden‑Master für Manifest und Hash-Stabilität.
+
+Akzeptanzkriterien
+- Jeder Fetch erzeugt reproduzierbaren Manifest‑Eintrag inkl. Hash.
+- Backtests exakt reproduzierbar (fixe config + seeds).
+
+2) ROBUSTE STANDARDISIERUNG & AUSREISSER
+- Methoden pro Indikator: zscore, robust_zscore (Median/MAD), winsorized_zscore (1/99), rank_normalization.
+- Rolling‑Baseline: Standardisierung relativ zu Fenster (z. B. 40 Quartale).
+- Richtungssicherheit: automatische Sign‑Checks gegen „higher_is_better“.
+
+Konkrete Tasks
+- src/processing/features.py: robust_zscore, winsorize, rank_norm.
+- Pydantic‑Config: indicator.standardization, winsorize_p, rolling_window_periods.
+
+Akzeptanzkriterien
+- Einheitliche API: features.standardize(df, method, winsorize_p, window).
+- Tests für konstante Serien, kurze Fenster, Ausreißer.
+
+3) FREQUENZ‑HARMONISIERUNG & TRANSFORM‑PIPELINE
+- Saubere Resampling‑Regeln:
+  - A→Q: asfreq("Q", method="pad")
+  - M→Q: Quarter‑End Aggregation (default mean, konfigurierbar last/median)
+- Strikte Reihenfolge: level → transform (yoy/qoq/logdiff) → smoothing → standardize
+- Saisonbereinigte Serien bevorzugen; SA‑Flag falls nicht verfügbar.
+
+Konkrete Tasks
+- src/processing/harmonize.py: frequency_pipeline(cadence_in, cadence_out, rule).
+- Config: indicator.frequency_in, target_frequency, aggregation_rule.
+
+Akzeptanzkriterien
+- Diagnose‑Report je Indikator mit Quelle/Frequenz/Resamplingpfad.
+
+4) SCORING: UNSICHERHEIT, ABDECKUNG, SENSITIVITÄT
+- Composite Score:
+  - Coverage‑Penalty statt Ausschluss: penalty = median_i − k·IQR_i (k konfigurierbar).
+  - Bootstrap‑Konfidenzbänder für Scores (n≥1000) und rank_stability ∈ [0,1] via ±10% Gewichtsrauschen.
+- Szenarien S1/S2/S3 mit klar dokumentierten Gewichtungen.
+
+Konkrete Tasks
+- src/processing/scoring.py: bootstrap_scores(), coverage_penalty().
+- Excel: Spalten score, score_ci_low, score_ci_high, rank_stability.
+
+Akzeptanzkriterien
+- Ranking_Übersicht zeigt CI und Stabilität, deterministische Sortierung.
+
+5) PORTFOLIO‑ÜBERSETZUNG (SCORES → HANDELBARE GEWICHTE)
+- Mapping Länder→ETF: Ticker, ISIN/WKN, Börse, Währung, ADV.
+- Gewichtungsfunktion: w_i ∝ max(score_i − τ, 0)^p; Normalisierung. Caps: max 15% pro Land, min 2% Aufnahme, max 35% je Region.
+- Turnover‑Kontrolle: monatlich/vierteljährlich; Trade erst bei |Δw|>1% (Bandbreite). Kostenmodell 5–15 bps, Slippage ~ ADV.
+- Risiko: Portfolio‑Vol‑Target (z. B. 10% p.a.), VaR/Drawdown‑Cap je Land, optional FX‑Hedge nach Zinsdifferenz‑Schwelle.
+
+Konkrete Tasks
+- portfolio/mapping.py, weights.py, rebalance.py, risk.py.
+- Neues Excel‑Sheet „Portfolio“: Zielgewichte, Deltas, Kosten, Hedge‑Status.
+- backtest/: Walk‑forward OOS inkl. Kosten und Slippage.
+
+Akzeptanzkriterien
+- Backtest‑Kennzahlen: CAGR, Vol, Sharpe, MaxDD, Turnover, Rebalance‑Hit‑Rate.
+
+6) SDMX‑QUELLEN PRODUKTIV (IMF/OECD/ECB)
+- pandasdmx‑Clients, Code‑Mapping → Klartext.
+- Mindestens je 2–3 Indikatoren:
+  - IMF IFS: Kurz‑/Langfristzins, M2
+  - OECD MEI: CLI/BCI
+  - ECB SDW: HICP Gesamt/Kern
+- Backoff/Rate‑Limits, Datei‑Cache 24h.
+
+Konkrete Tasks
+- fetchers/imf.py, oecd.py, ecb.py (einheitliches Interface).
+- Integrationstests mit VCR.py‑Fixtures.
+
+Akzeptanzkriterien
+- End‑to‑End Lauf mit ≥5 WB + ≥3 SDMX Indikatoren ohne API‑Keys.
+
+7) GOVERNANCE, CI/CD, QUALITÄT
+- Ruff/Black/mypy strict; pytest Coverage ≥85% für processing/scoring/portfolio.
+- pip‑audit in CI; semantische Versionierung + Changelog.
+- Reproduzierbare Builds und Artefakte.
+
+Akzeptanzkriterien
+- CI‑Pipeline grün: lint, type‑check, unit, integration, build.
+
+8) REPORTING FÜR PM‑ENTSCHEIDUNGEN
+- Excel‑Erweiterungen:
+  - Szenario‑Sheet (S1/S2/S3) mit Rängen.
+  - Heatmap Land×Indikator (value_std), Top‑10 Score‑Balken.
+  - Portfolio‑Sheet: Ticker, Währung, Zielgewicht, Bandbreite, erwartete Kosten.
+  - Diagnose‑Sheet: Coverage‑Matrix, Sensitivitäts‑Summary.
+
+Akzeptanzkriterien
+- Workbook direkt nutzbar fürs Rebalancing ohne manuelle Nacharbeit.
+
+9) BACKTESTING‑STANDARDS (IB‑LEVEL)
+- Walk‑forward OOS, kein Peeking.
+- Benchmarks: MKCap‑Gewichtung und Gleichgewichtung.
+- Statistik mit Konfidenzen: Newey‑West t‑Stats, Reality‑Check (White).
+- Stress‑Phasen: 2008, 2011, 2020, 2022 separat ausweisen.
+
+Akzeptanzkriterien
+- OOS‑Report mit Kennzahlen, Sensitivität und Limitations.
+
+10) 3‑MONATS ROADMAP (SPRINTS)
+- Sprint 1 (2 Wochen): Manifest‑Hardening + Env‑Manifest + Tests.
+- Sprint 2 (2 Wochen): robuste Standardisierung + Coverage‑Report + Tests.
+- Sprint 3 (3 Wochen): Parallel‑Fetcher + Rate‑Limits; IMF/OECD/ECB je 2 Indikatoren end‑to‑end.
+- Sprint 4 (laufend): Unsicherheit/Sensitivität, Portfolio‑Modul, CI/CD‑Härtung.
+
+DELIVERABLES
+- Erweiterte example-config.yaml (S1/S2/S3), Portfolio‑Mapping‑Template (Länder‑ETFs), vollständiges Excel mit Portfolio‑Sheet, Diagnose‑Sheet und Szenarien.

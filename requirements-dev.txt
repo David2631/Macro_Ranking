@@ -1,0 +1,9 @@
+pytest==7.4.0
+ruff==0.13.0
+mypy==1.6.1
+pip-audit==2.6.0
+black==24.3.0
+openpyxl==3.1.2
+# pandasdmx is optional for live fetches; tests mock it
+pandasdmx==1.4.0
+types-PyYAML==6.0

@@ -1,0 +1,4 @@
+[
+  {"indicator": "gdp", "country": "USA", "date": "2020-01-01", "value": 100},
+  {"indicator": "gdp", "country": "USA", "date": "2020-04-01", "value": 101}
+]

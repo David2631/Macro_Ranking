@@ -1,0 +1,46 @@
+countries:
+  - DEU
+  - FRA
+  - ESP
+period:
+  start: "2010-01-01"
+  end: "2025-09-27"
+  frequency: Q
+indicators:
+  - id: gdp_real_yoy
+    sources:
+      - source: WB
+        code: NY.GDP.MKTP.KD.ZG
+    good_direction: up
+    transform: none
+  - id: inflation
+    sources:
+      - source: WB
+        code: FP.CPI.TOTL.ZG
+    good_direction: down
+    transform: none
+scoring:
+  standardization: winsorized_zscore
+  smoothing: 1
+  weights:
+    gdp_real_yoy: 0.6
+    inflation: 0.4
+  min_coverage_ratio: 0.5
+  apply_coverage_penalty: true
+  coverage_k: 0.5
+  bootstrap:
+    enabled: false
+backtest:
+  enabled: false
+excel:
+  path: output/macro_ranking_s2.xlsx
+caching:
+  enabled: true
+  ttl_hours: 24
+runtime:
+  max_workers: 4
+  request_timeout_sec: 30
+allocation:
+  min_alloc: 0.01
+  max_alloc: 0.5
+  top_n: 5

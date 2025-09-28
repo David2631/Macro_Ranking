@@ -1,0 +1,132 @@
+Makro-Ranking System - Technische Beschreibung (für Notion AI)
+
+Ziel dieses Dokuments
+- Präzise, technische Beschreibung des aktuellen Makro‑Ranking‑Systems in diesem Repository.
+- Dient als Input für eine Notion‑AI, die daraus konkrete Verbesserungen vorschlagen soll (IB‑Level / Investment Bank Standards).
+
+1) Überblick - was das System tut
+Das Tool lädt öffentliche Makrodaten (derzeit World Bank als primäre Quelle) für eine konfigurierbare Liste von Ländern und Indikatoren, berechnet indikator­spezifische Transformationen (z. B. Prozentänderungen), standardisiert Indikatoren (z. B. z‑Score) unter Berücksichtigung der gewünschten Richtung ("higher_is_better"), aggregiert die standardisierten Werte zu einem gewichteten Composite Score, erstellt Ranglisten und exportiert die Ergebnisse in ein deutsch‑formatiertes Excel Workbook sowie ein kleines CSV. Es schreibt außerdem ein Manifest zur Reproduzierbarkeit (Konfigurations-Snapshot, Fetch‑Summaries, Cache‑Statistik).
+
+2) Architektur & Dateistruktur
+- src/
+  - config.py: Pydantic‑Modelle für die Validierung der `example-config.yaml` und `load_config()` Funktion.
+  - fetchers/: Implementierung der Datenquelle(n). Aktuell:
+    - worldbank.py: voll implementierter Fetcher mit Pagination, Retries und JSON‑Parsing.
+    - (IMF/OECD/ECB): SDMX‑Stubs (pandasdmx empfohlen) für spätere Integration.
+  - indicators/: Plugin‑Interface (IndicatorPlugin) + `WBIndicator` als Beispiel.
+  - processing/: Harmonisierung (ISO3 Mapping), Feature‑Transform (pct_change, diff), Smoothing, Standardisierung, Scoring (compute_coverage, compute_composite, ranking).
+  - io/: Excel Export (`src/io/excel.py`), Cache (`src/io/cache.py`), Manifest writer (`src/io/artifacts.py`).
+  - main.py: CLI Entrypoint und Orchestrator. Unterstützt `--config` und `--countries` Overrides sowie `--debug`.
+- data/: enthält `countries_iso3.csv` (ISO‑3166 alpha‑3 mapping) und `/_artifacts/` (manifests).
+- output/: erzeugte Artefakte (Excel, CSV)
+
+3) Konfiguration (was steuerbar ist)
+- Länderliste (ISO3) — `example-config.yaml` oder `--countries` CLI override.
+- Period: Start/End Jahr für Abfragen.
+- Indikatoren: Liste mit sources (WB, IMF,...), indicator code(s) pro Quelle, wanted transform (pct_change/diff/level), smoothing (rolling window), direction (higher_is_better: bool), weight (float).
+- Scoring: min_coverage_ratio, weighting options, standardization method (zscore by cross‑section or time‑series), missing‑value handling.
+- Excel: path, number/date format (de‑DE expectations).
+- Caching: TTL and cache dir.
+- Runtime: max_workers (für geplante Parallelisierung)
+
+4) Datenfluss (End‑to‑End)
+1. Load & validate config (Pydantic).
+2. For each indicator plugin:
+   - Fetch raw series for configured countries and period (per source). WB fetcher uses `api.worldbank.org/v2/country/{iso}/indicator/{code}` with pagination and per_page param.
+   - Normalize columns to a common frame: [source, indicator, country, date, value].
+3. Harmonize country codes to ISO3 (pycountry + `data/countries_iso3.csv`).
+4. Apply transforms specified per indicator (pct_change, diff, smoothing window).
+5. Standardize indicator time series (currently per‑indicator standardization to mean=0, sd=1 across the cross‑section for the reference period). Respect `higher_is_better` by sign flipping if needed.
+6. Compute per‑country coverage (non‑NA share across indicator list). Drop countries below `min_coverage_ratio` from ranking eligibility.
+7. Compute composite score: weighted mean across available standardized indicator values, ignoring NaNs (i.e., numerator = sum(value_i * weight_i), denominator = sum(weight_i over non‑NA indicators)).
+8. Rank countries by score; write outputs: Excel workbook with sheets `Ranking_Übersicht`, `Einzelindikatoren`, `Rohdaten`, `Konfiguration`, `README`, plus a small CSV and an artifacts manifest JSON.
+
+5) Aktuelle Algorithmen und Design‑Entscheidungen (mit Bewertung)
+- Fetching
+  - Pros: Simple, reliable World Bank API use; retries and pagination reduce errors.
+  - Cons: Serial by default (configurable later), limited to what the endpoint provides; some indicators have irregular or missing series.
+- Harmonization
+  - Using `pycountry` + local CSV gives robustness for names/iso mapping.
+- Transformations
+  - Supports common transforms (pct_change, diff) and simple rolling smoothing.
+  - Missing: seasonality adjustment, detrending, structural break detection.
+- Standardization & Direction
+  - Current default: z‑score across cross‑section (same year across countries). This is intuitive for cross‑country ranking.
+  - Missing: robust z‑score (median/MAD), winsorization, or rank‑based normalizations. Also missing multi‑period baselines (rolling reference windows).
+- Scoring
+  - Weighted mean ignoring NaNs — pragmatic and interpretable. Countries with partial coverage can still be ranked.
+  - Missing: explicit uncertainty propagation (variance of the composite), significance tests, and sensitivity analyses (how score changes for small perturbations in weights).
+- Provenance & Reproducibility
+  - Manifest stores config snapshot and fetch summaries. Good starting point for audits.
+  - Missing: cryptographic hashing of input artifacts, exact fetch timestamps per indicator, reproducible environment capture (Python/pip freeze), and deterministic random seeds.
+
+6) Known limitations / edge cases
+- Indicators with different frequencies (quarterly/monthly/annual) are not fully harmonized beyond naive date parsing.
+- Structural breaks and unit changes (e.g., new series definitions) are not detected.
+- No CPI/price deflation logic for nominal values; mixing nominal/real could be misleading.
+- SDMX sources are stubs and require concrete dataset keys & mapping.
+- Performance: serial HTTP fetch is slow for many countries × many indicators.
+- Security/privacy: no secret handling required — only public APIs used.
+
+7) Priorisierte Verbesserungen (konkret, um IB‑Level zu erreichen)
+Hinweis: Priorität ist vom Aufwand × Impact bewertet (High/Medium/Low)
+
+High priority (must have for IB usage)
+- Data quality & provenance hardening
+  - Capture and store per‑indicator fetch metadata: exact URL, HTTP status, response headers, ETag/Last‑Modified when present, and row counts. Add SHA256 hash of each raw fetch payload and of the final Excel/CSV manifest.
+  - Add an `environment_manifest` capturing Python version, package versions (`pip freeze`), OS, and git commit hash.
+  - Add deterministic run ids and sign manifests (HMAC with optional key) for audit trails.
+- Robust standardization & winsorization
+  - Implement robust z‑score (median/MAD) and winsorization (1%/99%) options. Expose via config per indicator.
+- Unit/Scale checks & automatic unit conversion
+  - For indicators commonly mixed (e.g., nominal vs. real, per capita vs. totals), add rules or metadata to detect and convert units (caveat: needs curated mapping table per indicator code).
+- Testing & CI
+  - Add comprehensive unit and integration tests (fetch stubs, synthetic data) and set up CI to run fast checks.
+
+Medium priority (important for production maturity)
+- Parallel fetching and rate‑limit handling
+  - Implement concurrent fetching with backoff and rate limit detection; configure max_workers and per‑source rate limits.
+- SDMX sources: robust IMF/OECD/ECB integration
+  - Implement robust pandasdmx clients with dataset keys and mapping of codes → human names.
+- Uncertainty quantification & sensitivity
+  - Compute bootstrap confidence intervals for composite scores (resample indicators or observations) and report stability metrics.
+- Coverage reports & weighting diagnostics
+  - Produce a coverage matrix (indicators × countries) and a diagnostics report showing which indicators drive the score for each top/bottom country.
+
+Low/Optional priority (value-adds)
+- Time‑series adjustments (seasonal adjustment, Hodrick‑Prescott detrending) as optional transforms in config.
+- Interactive dashboard (Streamlit/Voila) for exploring indicators and weight sensitivities.
+- Automated alerts for missing data or when coverage drops below thresholds.
+
+8) Concrete technical tasks (3‑month IB roadmap)
+Sprint 1 (2 weeks)
+- Implement per‑fetch metadata capture & hashing; extend manifest schema.
+- Add `environment_manifest` and attach pip freeze + git commit.
+- Add tests for manifest generation.
+
+Sprint 2 (2 weeks)
+- Robust standardization module (median/MAD, winsorization). Add unit tests and config switches.
+- Add coverage report generation and include as Excel sheet.
+
+Sprint 3 (3 weeks)
+- Parallel fetcher with backoff, per‑source rate limiting and retries (tenacity or custom), CLI `--max-workers` integration.
+- Implement IMF/OECD SDMX fetchers and map two sample indicators each; end‑to‑end tests.
+
+Sprint 4 (ongoing)
+- Uncertainty quantification and sensitivity analysis + reporting.
+- Add CI, linting, security scanning, and release packaging.
+
+9) Data contract / API spec (short)
+- Input: `example-config.yaml` (country list, period, indicators, scoring, excel config)
+- Output: `./output/macro_ranking.xlsx` (Workbook), `./output/macro_ranking.csv`, `data/_artifacts/manifest_*.json` with:
+  - run_id, timestamp, git_commit, environment_manifest, config_snapshot, fetches: [{source, indicator, country, url, status, rows, sha256}], scores: path to CSV/Excel, cache_stats
+
+10) Quick wins you can ask Notion‑AI to propose
+- Give a list of robust normalization techniques and explain when to use each (median/MAD, log transform, Box‑Cox, rank‑gauss).
+- Propose a defensible weighting scheme (e.g., PCA/Factor model + expert override) and how to validate it.
+- Suggest a standardized manifest JSON schema for auditability (fields + types).
+
+---
+Date: 2025‑09‑27
+Generated by: codebase inspection + runtime verification
+
