@@ -1,0 +1,6 @@
+provider,resource,series_code,indicator_id,notes
+IMF,IFS,ABC.GDP.1,GDP,Sample mapping for GDP
+OECD,MEI,XYZ.IND1,IND1,Sample mapping for IND1
+provider,resource,series_code,indicator_id,notes
+IMF,IFS,ABC.GDP.1,GDP,Example mapping IMF IFS series to repo indicator GDP
+OECD,MEI,XYZ.IND1,IND1,Example mapping OECD MEI series to repo indicator IND1
