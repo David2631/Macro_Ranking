@@ -26,14 +26,33 @@ jobs:
       - name: Install dev dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          # prefer binary wheels to avoid build-time C extensions where possible
+          pip install --prefer-binary -r requirements-dev.txt
       - name: Lint (ruff)
         run: ruff check .
       - name: Type check (mypy)
         run: mypy src
-      - name: Run tests (pytest)
+      - name: Run tests with coverage and enforce threshold
         run: |
-          pytest -q --junitxml=pytest-report.xml
+          # run pytest under coverage and produce junit xml for artifacts
+          pip install coverage
+          coverage run -m pytest -q --junitxml=pytest-report.xml
+          coverage report -m
+          python - <<'PY'
+import sys, re, subprocess
+out = subprocess.check_output(['coverage','report']).decode()
+print(out)
+m = re.search(r'^\s*TOTAL\s+\d+\s+\d+\s+([\d\.]+)%', out, flags=re.M)
+if not m:
+    print('Could not parse coverage output')
+    sys.exit(1)
+pct = float(m.group(1))
+print(f'Coverage TOTAL: {pct}%')
+if pct < 85.0:
+    print('Coverage threshold not met (>=85%)')
+    sys.exit(2)
+print('Coverage threshold satisfied')
+PY
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:
@@ -41,48 +60,3 @@ jobs:
           path: pytest-report.xml
       - name: Pip audit (blocking)
         run: pip-audit --strict
-name: CI
-
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-
-jobs:
-  checks:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.11]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Debug runner info
-        run: |
-          echo "--- runner info ---"
-          uname -a || true
-          echo "--- python & pip ---"
-          python --version || true
-          pip --version || true
-          echo "--- pip list (top 50) ---"
-          pip list --format=columns | sed -n '1,50p' || true
-          echo "--- tools versions ---"
-          ruff --version || true
-          mypy --version || true
-          pytest --version || true
-      - name: Install dev dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-      - name: Lint (ruff)
-        run: ruff check .
-      - name: Type check (mypy)
-        run: mypy src || true
-      - name: Run tests
-        run: pytest -q
-      - name: Pip audit (non-blocking)
-        run: pip-audit --strict || true

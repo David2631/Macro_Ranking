@@ -1,14 +1,22 @@
-Contributing
+## Contributing
 
-Thanks for contributing! A few guidelines:
+Thanks for contributing to Macro_Ranking — we appreciate it!
 
-- Run tests before opening a PR:
+Quick checklist:
+
+- Open an issue for larger changes before starting work.
+- Create a branch from `main` named `feature/...` or `fix/...`.
+- Run tests locally and add unit tests for any new behaviour.
+- Keep changes small and focused; CI enforces linters, types and an 85% coverage gate.
+
+Recommended local setup (PowerShell):
 
 ```powershell
-python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements.txt
+python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -r requirements-dev.txt
 pytest -q
 ```
 
-- Add SDMX fixtures under `tests/fixtures/sdmx/<source>` when adding or changing fetchers.
-- Keep changes small and add unit tests for new behavior.
-- Use `black` or `flake8` if you'd like; CI currently runs pytest only.
+If you add or change fetchers, include SDMX fixtures in `tests/fixtures/sdmx/<source>`.
+Use `black`/`ruff` to format and lint; CI will run the full checks.
+
+Thank you!

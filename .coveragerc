@@ -1,0 +1,12 @@
+[run]
+omit =
+    scripts/*
+    src/main.py
+    src/fetchers/worldbank.py
+
+[report]
+exclude_lines =
+    # Don't complain about pragmas
+    pragma: no cover
+    # This is used to indicate a block is for debugging only
+    if __name__ == .__main__.: 

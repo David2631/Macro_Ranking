@@ -8,6 +8,8 @@ def score_to_weights(
     min_alloc: float = 0.0,
     max_alloc: float = 1.0,
     top_n: Optional[int] = None,
+    region_map: Optional[dict] = None,
+    max_region_alloc: Optional[float] = None,
 ) -> pd.Series:
     """Convert a score series into portfolio weights.
 
@@ -115,6 +117,62 @@ def score_to_weights(
         weights = pd.Series(1.0 / n, index=names)
     else:
         weights = weights / total_w
+
+    # Apply region-level cap if requested. region_map should map country -> region id.
+    # When max_region_alloc is set, reduce weights proportionally within regions that exceed the cap
+    if region_map and max_region_alloc is not None:
+        # compute region sums
+        region_series = pd.Series(region_map)
+        # map the weights to regions; countries not in region_map get key None
+        reg_of = {
+            k: region_series.get(k) if k in region_series.index else None
+            for k in weights.index
+        }
+        from typing import Dict
+
+        reg_idx: Dict[str, list] = {}
+        for c, r in reg_of.items():
+            reg_idx.setdefault(r, []).append(c)
+
+        # iterative adjustment: for regions exceeding cap, scale down proportionally and redistribute the freed budget
+        freed = 0.0
+        adjusted = weights.copy()
+        for r, members in reg_idx.items():
+            if r is None:
+                continue
+            s = adjusted.loc[members].sum()
+            if s > max_region_alloc + 1e-12:
+                # scale factor to reduce to cap
+                factor = max_region_alloc / s
+                adjusted.loc[members] = adjusted.loc[members] * factor
+                freed += s - adjusted.loc[members].sum()
+
+        # redistribute freed budget proportionally across unconstrained members (regions that are below cap and countries without region)
+        if freed > 1e-12:
+            # eligible recipients: countries whose region is None or region sum < max_region_alloc
+            eligible = []
+            region_sums = {
+                r: adjusted.loc[members].sum()
+                for r, members in reg_idx.items()
+                if r is not None
+            }
+            for c in adjusted.index:
+                r = reg_of.get(c)
+                if r is None or region_sums.get(r, 0.0) < max_region_alloc - 1e-12:
+                    eligible.append(c)
+            if eligible:
+                # distribute proportional to current weight (or equal if zero)
+                cur = adjusted.loc[eligible]
+                if cur.sum() == 0:
+                    add = pd.Series(1.0 / len(eligible), index=eligible) * freed
+                else:
+                    add = (cur / cur.sum()) * freed
+                adjusted.loc[eligible] = adjusted.loc[eligible] + add
+
+        # final renormalize to sum to 1
+        if adjusted.sum() > 0:
+            adjusted = adjusted / adjusted.sum()
+        weights = adjusted
     return weights
 
 
