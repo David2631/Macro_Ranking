@@ -356,7 +356,13 @@ def write_manifest(
 
     # write environment sidecar for easier provenance inspection
     try:
-        env_path = path + ".environment.json"
+        # write a sidecar file with a non-.json extension so simple
+        # glob('*.json') will continue to find the manifest file as the
+        # latest entry. The file itself contains JSON for easy inspection.
+        if path.endswith(".json"):
+            env_path = path.replace(".json", ".environment")
+        else:
+            env_path = path + ".environment"
         with open(env_path, "w", encoding="utf-8") as ef:
             json.dump(env, ef, ensure_ascii=False, indent=2, default=str)
         # compute manifest file sha256 and attach to manifest outputs for stronger provenance
