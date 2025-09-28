@@ -288,10 +288,14 @@ def write_manifest(
     """
     ensure_artifact_dir()
     m = dict(manifest)  # shallow copy
+    # manifest version for future compatibility
+    m.setdefault("manifest_version", "1.0")
     # stable timestamp for human readability (not used in deterministic signature)
     # use timezone-aware UTC datetime
     m.setdefault("run_timestamp_utc", datetime.now(timezone.utc).isoformat())
-    m["environment"] = environment_manifest()
+    # include environment snapshot (will also be written as a sidecar)
+    env = environment_manifest()
+    m["environment"] = env
 
     # Enrich fetch entries to canonical schema where possible
     try:
@@ -349,4 +353,22 @@ def write_manifest(
     path = os.path.join(ARTIFACT_DIR, f"{prefix}_{ts}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(m, f, ensure_ascii=False, indent=2, default=str)
+
+    # write environment sidecar for easier provenance inspection
+    try:
+        env_path = path + ".environment.json"
+        with open(env_path, "w", encoding="utf-8") as ef:
+            json.dump(env, ef, ensure_ascii=False, indent=2, default=str)
+        # compute manifest file sha256 and attach to manifest outputs for stronger provenance
+        manifest_sha = sha256_of_file(path)
+        if manifest_sha:
+            m.setdefault("provenance", {})
+            m["provenance"]["manifest_sha256"] = manifest_sha
+            # update file with provenance now included
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(m, f, ensure_ascii=False, indent=2, default=str)
+    except Exception:
+        # do not fail the manifest write for sidecar or hashing errors
+        pass
+
     return path
