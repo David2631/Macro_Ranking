@@ -1,0 +1,77 @@
+countries:
+  - DEU
+  - FRA
+period:
+  start: "2015-01-01"
+  end: "2025-09-01"
+  frequency: Q
+indicators:
+  - id: GDP
+    sources:
+      - source: IMF
+        code: ABC.GDP.1
+  - id: IND1
+    sources:
+      - source: OECD
+        code: XYZ.IND1
+scoring:
+  standardization: zscore
+  smoothing: 0
+  weights:
+    GDP: 1.0
+    IND1: 0.0
+excel:
+  path: ./output/macro_ranking.xlsx
+caching:
+  enabled: false
+runtime:
+  max_workers: 1
+allocation:
+  min_alloc: 0.0
+  max_alloc: 1.0
+backtest:
+  no_backfill: false
+countries: [DEU]
+period:
+  start: '2020-01-01'
+  end: '2023-01-01'
+  frequency: 'A'
+indicators:
+  - id: imf_indicator
+    sources:
+      - source: IMF
+        code: CODE_IMF
+    good_direction: up
+    transform: none
+  - id: oecd_indicator
+    sources:
+      - source: OECD
+        code: CODE_OECD
+    good_direction: up
+    transform: none
+  - id: ecb_indicator
+    sources:
+      - source: ECB
+        code: CODE_ECB
+    good_direction: up
+    transform: none
+scoring:
+  standardization: zscore
+  smoothing: 0
+  weights:
+    imf_indicator: 0.34
+    oecd_indicator: 0.33
+    ecb_indicator: 0.33
+  min_coverage_ratio: 0.0
+excel:
+  path: './output/tmp_sdmx_macro_ranking.xlsx'
+  sheet_prefix: 'Makro'
+  number_format: '#.##0,00'
+  date_format: 'DD.MM.YYYY'
+caching:
+  enabled: false
+runtime:
+  max_workers: 2
+  request_timeout_sec: 5
+  retry_max: 1
+  backoff_initial_sec: 0.5

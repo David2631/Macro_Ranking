@@ -7,3 +7,8 @@ openpyxl==3.1.2
 # pandasdmx is optional for live fetches; tests mock it
 pandasdmx==1.4.0
 types-PyYAML==6.0
+# Runtime YAML parser required by src.config
+PyYAML==6.0
+# Country metadata used by harmonization & excel mapping
+pycountry==24.6.1
+scipy
