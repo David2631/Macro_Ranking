@@ -11,3 +11,4 @@ types-PyYAML==6.0
 PyYAML==6.0
 # Country metadata used by harmonization & excel mapping
 pycountry==24.6.1
+scipy
